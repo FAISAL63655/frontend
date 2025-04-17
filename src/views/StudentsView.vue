@@ -12,7 +12,7 @@
           </div>
           <p class="text-body-1">قم بإضافة وتعديل وإدارة بيانات الطلاب في النظام</p>
         </div>
-        
+
         <div class="d-flex flex-wrap justify-center justify-md-end">
           <v-btn
             color="primary"
@@ -24,7 +24,7 @@
           >
             إضافة طالب
           </v-btn>
-          
+
           <v-btn-toggle
             v-model="showTable"
             mandatory
@@ -46,7 +46,7 @@
         </div>
       </div>
     </v-sheet>
-    
+
     <!-- شريط الفلاتر -->
     <v-card variant="outlined" class="mb-6 filter-card" color="background" rounded="lg" elevation="1">
       <v-card-item>
@@ -64,7 +64,7 @@
             rounded="xl"
             bg-color="surface"
           ></v-text-field>
-          
+
           <v-select
             v-model="selectedClass"
             :items="classes"
@@ -79,7 +79,7 @@
             hide-details
             @update:model-value="fetchStudents"
           ></v-select>
-          
+
           <v-select
             v-model="selectedSection"
             :items="sections"
@@ -94,7 +94,7 @@
             hide-details
             @update:model-value="fetchStudents"
           ></v-select>
-          
+
           <v-chip-group
             v-model="selectedStatus"
             mandatory
@@ -134,7 +134,7 @@
         </div>
       </v-card-item>
     </v-card>
-    
+
     <!-- رسالة عند عدم وجود طلاب -->
     <v-card v-if="filteredStudents.length === 0" class="mb-6 text-center pa-8" variant="outlined" color="background" rounded="lg">
       <v-img
@@ -145,24 +145,24 @@
       ></v-img>
       <h3 class="text-h5 mb-3">لا يوجد طلاب</h3>
       <p class="text-body-1 text-medium-emphasis mb-6">لم يتم العثور على طلاب بناءً على عوامل التصفية المحددة</p>
-      <v-btn 
-        color="primary" 
-        prepend-icon="mdi-account-plus" 
-        variant="flat" 
+      <v-btn
+        color="primary"
+        prepend-icon="mdi-account-plus"
+        variant="flat"
         @click="showAddStudentDialog = true"
         elevation="2"
       >
         إضافة طالب جديد
       </v-btn>
     </v-card>
-    
+
     <!-- عرض البطاقات -->
     <div v-if="filteredStudents.length > 0 && !showTable">
       <v-row>
         <v-col v-for="student in filteredStudents" :key="student.id" cols="12" sm="6" md="3" xl="2">
-          <v-card 
-            class="student-card" 
-            rounded="lg" 
+          <v-card
+            class="student-card"
+            rounded="lg"
             :elevation="2"
             variant="elevated"
           >
@@ -170,11 +170,11 @@
               <v-card-actions class="justify-end pa-2">
                 <v-menu location="bottom">
                   <template v-slot:activator="{ props }">
-                    <v-btn 
-                      icon="mdi-dots-vertical" 
-                      v-bind="props" 
-                      size="small" 
-                      variant="text" 
+                    <v-btn
+                      icon="mdi-dots-vertical"
+                      v-bind="props"
+                      size="small"
+                      variant="text"
                       color="white"
                     ></v-btn>
                   </template>
@@ -195,13 +195,13 @@
                 </v-menu>
               </v-card-actions>
             </div>
-            
+
             <div class="student-avatar-container">
               <v-avatar size="80" class="student-avatar">
                 <v-img :src="student.image" :alt="student.name" cover></v-img>
               </v-avatar>
             </div>
-            
+
             <v-card-item class="pb-0">
               <v-card-title class="text-center pb-0 d-block text-truncate">{{ student.name }}</v-card-title>
               <div class="d-flex align-center justify-center">
@@ -215,7 +215,7 @@
                 </v-chip>
               </div>
             </v-card-item>
-            
+
             <v-card-text class="pt-0">
               <div class="d-flex justify-space-between mt-3">
                 <div class="text-center flex-grow-1">
@@ -229,9 +229,9 @@
                 </div>
               </div>
             </v-card-text>
-            
+
             <v-divider></v-divider>
-            
+
             <v-card-actions class="pa-0">
               <v-btn block color="primary" variant="text" class="rounded-0" @click="handleEditFromTable(student)">
                 <v-icon size="small" class="ml-2">mdi-account-edit</v-icon>
@@ -242,7 +242,7 @@
         </v-col>
       </v-row>
     </div>
-    
+
     <!-- عرض الجدول -->
     <v-card v-if="showTable && filteredStudents.length > 0" class="mb-6" elevation="1" rounded="lg">
       <v-data-table
@@ -336,7 +336,7 @@
             <v-icon>mdi-close</v-icon>
           </v-btn>
         </v-toolbar>
-        
+
         <v-card-text class="pt-6">
           <v-form ref="studentForm">
             <v-row justify="center">
@@ -345,7 +345,7 @@
                   <v-img v-if="studentForm.image" :src="studentForm.image" :alt="studentForm.name || 'صورة الطالب'" cover></v-img>
                   <span v-else class="text-h3 text-white">{{ studentForm.name ? studentForm.name.charAt(0) : 'ط' }}</span>
                 </v-avatar>
-                
+
                 <v-file-input
                   label="اختر صورة شخصية"
                   variant="outlined"
@@ -357,10 +357,10 @@
                   class="mb-5 mx-auto"
                   style="max-width: 300px"
                 ></v-file-input>
-                
+
                 <v-divider class="mb-6"></v-divider>
               </v-col>
-              
+
               <v-col cols="12">
                 <v-text-field
                   v-model="studentForm.name"
@@ -424,16 +424,16 @@
             </v-row>
           </v-form>
         </v-card-text>
-        
+
         <v-divider></v-divider>
-        
+
         <v-card-actions class="pa-4">
           <v-spacer></v-spacer>
           <v-btn variant="outlined" color="grey" @click="showAddStudentDialog = false">
             إلغاء
           </v-btn>
-          <v-btn 
-            color="primary" 
+          <v-btn
+            color="primary"
             variant="flat"
             @click="saveStudent"
             :loading="saveLoading"
@@ -457,11 +457,11 @@
           </template>
           <v-card-title class="text-white">تأكيد حذف الطالب</v-card-title>
         </v-card-item>
-        
+
         <v-card-text class="text-center pt-6 pb-2">
           <v-avatar size="80" class="mb-3 elevation-2">
-            <v-img 
-              :src="studentToDelete?.image || 'https://cdn.vuetifyjs.com/images/john.jpg'" 
+            <v-img
+              :src="studentToDelete?.image || 'https://cdn.vuetifyjs.com/images/john.jpg'"
               :alt="studentToDelete?.name || 'صورة الطالب'"
               cover
             ></v-img>
@@ -472,7 +472,7 @@
             هذا الإجراء لا يمكن التراجع عنه.
           </v-alert>
         </v-card-text>
-        
+
         <v-card-actions class="pa-4">
           <v-spacer></v-spacer>
           <v-btn variant="outlined" color="grey" @click="showDeleteDialog = false">
@@ -492,9 +492,7 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import axios from 'axios'
-
-// تهيئة Axios وتعيين عنوان الخادم الافتراضي
-axios.defaults.baseURL = 'http://localhost:8000/api'
+import api, { getFullImageUrl } from '@/services/apiConfig'
 
 // Data
 const classes = ref([])
@@ -541,26 +539,13 @@ const filteredStudents = computed(() => {
   return students.value.filter(student => student.status === selectedStatus.value)
 })
 
-// دالة للتعامل مع URL الصور بشكل صحيح
-const getFullImageUrl = (imagePath) => {
-  if (!imagePath) return 'https://cdn.vuetifyjs.com/images/john.jpg'
-  
-  // إذا كان المسار بالفعل URL كامل
-  if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
-    console.log('صورة بعنوان URL كامل:', imagePath)
-    return imagePath
-  }
+// استخدام دالة getFullImageUrl من apiConfig.js
+// تم تعريفها بالفعل في الأعلى
 
-  // استخراج المسار النسبي من URL كامل إذا كان العنوان من الخادم الخلفي
-  if (imagePath.includes('/media/')) {
-    const mediaPath = imagePath.substring(imagePath.indexOf('/media/'))
-    console.log('تم استخراج مسار الوسائط:', mediaPath)
-    return `http://localhost:8000${mediaPath}`
-  }
-  
-  // للمسارات النسبية
-  console.log('مسار نسبي للصورة:', imagePath)
-  return `http://localhost:8000/media/students/${imagePath}`
+// دالة مساعدة للتأكد من وجود صورة أو استخدام صورة افتراضية
+const getStudentImage = (imagePath) => {
+  if (!imagePath) return 'https://cdn.vuetifyjs.com/images/john.jpg'
+  return getFullImageUrl(imagePath)
 }
 
 // تعديل previewSelectedImage
@@ -576,8 +561,8 @@ const previewSelectedImage = (file) => {
   } else {
     // إذا تم إلغاء اختيار الملف، نعيد تعيين الصورة إلى القيمة الافتراضية
     studentForm.value.imageFile = null
-    studentForm.value.image = isEditMode.value ? 
-      students.value.find(s => s.id === studentForm.value.id)?.image : 
+    studentForm.value.image = isEditMode.value ?
+      students.value.find(s => s.id === studentForm.value.id)?.image :
       'https://cdn.vuetifyjs.com/images/john.jpg'
   }
 }
@@ -586,7 +571,7 @@ const previewSelectedImage = (file) => {
 onMounted(async () => {
   try {
     // Fetch classes
-    const classesResponse = await axios.get('classes/')
+    const classesResponse = await api.get('classes/')
     classes.value = classesResponse.data || []
 
     console.log('Fetched classes:', classes.value)
@@ -596,7 +581,7 @@ onMounted(async () => {
     }
 
     // Fetch sections
-    const sectionsResponse = await axios.get('sections/')
+    const sectionsResponse = await api.get('sections/')
     sections.value = sectionsResponse.data || []
 
     console.log('Fetched sections:', sections.value)
@@ -622,7 +607,7 @@ const fetchStudents = async () => {
   if (!selectedClass.value || !selectedSection.value) return
 
   try {
-    const response = await axios.get('students/by_class_section/', {
+    const response = await api.get('students/by_class_section/', {
       params: {
         class_id: selectedClass.value,
         section_id: selectedSection.value
@@ -633,10 +618,10 @@ const fetchStudents = async () => {
     students.value = response.data.map(student => {
       // طباعة البيانات الواردة من الخادم للتأكد من صحتها
       console.log('Raw student data from server:', student)
-      
-      const imageUrl = student.image ? getFullImageUrl(student.image) : 'https://cdn.vuetifyjs.com/images/john.jpg';
+
+      const imageUrl = student.image ? getStudentImage(student.image) : 'https://cdn.vuetifyjs.com/images/john.jpg';
       console.log(`صورة الطالب ${student.name}:`, student.image, ' -> ', imageUrl);
-      
+
       return {
         id: student.id,
         name: student.name,
@@ -660,17 +645,17 @@ const fetchStudents = async () => {
 // Edit student
 const editStudent = (student) => {
   console.log('بدء تعديل الطالب:', student);
-  
+
   // تعيين وضع التعديل
   isEditMode.value = true;
-  
+
   // إذا كانت البيانات تأتي من كائن Vuetify Table
   if (student && student.columns) {
     // استخراج المعرف والبيانات من كائن الجدول
     const id = student.value;
     // البحث عن الطالب باستخدام المعرف
     const originalStudent = students.value.find(s => s.id === id);
-    
+
     if (originalStudent) {
       studentForm.value = { ...originalStudent, imageFile: null };
     } else {
@@ -709,7 +694,7 @@ const editStudent = (student) => {
       imageFile: null
     };
   }
-  
+
   console.log('تم تعيين بيانات نموذج التعديل:', studentForm.value);
   showAddStudentDialog.value = true;
 }
@@ -727,10 +712,10 @@ const handleEditById = (id) => {
 // إضافة دالة طوارئ لتعبئة نموذج التعديل من الجدول
 const handleEditFromTable = (item) => {
   console.log('محاولة تعديل عنصر من الجدول:', item);
-  
+
   // محاولة استخدام الطريقة المباشرة أولاً
   editStudent(item);
-  
+
   // إذا كان النموذج فارغًا بعد محاولة التعديل، نحاول بطريقة أخرى
   setTimeout(() => {
     if (!studentForm.value.name) {
@@ -746,7 +731,7 @@ const handleEditFromTable = (item) => {
         console.log('محاولة التعديل باستخدام الرقم مباشرة:', item);
         studentId = item;
       }
-      
+
       if (studentId) {
         handleEditById(studentId);
       } else {
@@ -754,7 +739,7 @@ const handleEditFromTable = (item) => {
       }
     }
   }, 100);
-  
+
   console.log('Dummy students:', students.value)
 }
 
@@ -847,14 +832,14 @@ const saveStudent = async () => {
 
     if (isEditMode.value) {
       // Update existing student
-      response = await axios.put(`students/${studentForm.value.id}/`, formData, {
+      response = await api.put(`students/${studentForm.value.id}/`, formData, {
         headers: {
           'Content-Type': 'multipart/form-data'
         }
       })
 
       console.log('Student updated successfully:', response.data)
-      const imageUrl = response.data.image ? getFullImageUrl(response.data.image) : currentImagePreview;
+      const imageUrl = response.data.image ? getStudentImage(response.data.image) : currentImagePreview;
       console.log('صورة الطالب بعد التحديث:', response.data.image, ' -> ', imageUrl);
 
       // تحويل البيانات المستلمة إلى الشكل المطلوب
@@ -876,14 +861,14 @@ const saveStudent = async () => {
       }
     } else {
       // Create new student
-      response = await axios.post('students/', formData, {
+      response = await api.post('students/', formData, {
         headers: {
           'Content-Type': 'multipart/form-data'
         }
       })
 
       console.log('Student created successfully:', response.data)
-      const imageUrl = response.data.image ? getFullImageUrl(response.data.image) : (currentImagePreview || 'https://cdn.vuetifyjs.com/images/john.jpg');
+      const imageUrl = response.data.image ? getStudentImage(response.data.image) : (currentImagePreview || 'https://cdn.vuetifyjs.com/images/john.jpg');
       console.log('صورة الطالب الجديد:', response.data.image, ' -> ', imageUrl);
 
       // تحويل البيانات المستلمة إلى الشكل المطلوب
@@ -931,7 +916,7 @@ const saveStudent = async () => {
       // Add new student to list with dummy ID
       const newStudentImage = studentForm.value.image || 'https://cdn.vuetifyjs.com/images/john.jpg';
       console.log('Using image for new student:', newStudentImage);
-      
+
       students.value.push({
         id: Date.now(), // Use timestamp as dummy ID
         name: studentForm.value.name,
@@ -958,7 +943,7 @@ const resetForm = () => {
   console.log('Resetting form with default values')
   console.log('Selected class:', selectedClass.value)
   console.log('Selected section:', selectedSection.value)
-  
+
   studentForm.value = {
     id: null,
     name: '',
@@ -968,7 +953,7 @@ const resetForm = () => {
     image: null,
     imageFile: null
   }
-  
+
   console.log('Form reset to:', studentForm.value)
   isEditMode.value = false
 }
@@ -1027,7 +1012,7 @@ const addDummyData = () => {
       image: 'https://randomuser.me/api/portraits/men/3.jpg'
     }
   ]
-  
+
   console.log('Dummy students:', students.value)
 }
 
@@ -1039,16 +1024,17 @@ const watchStudentForm = watch(studentForm, (newValue) => {
 // إضافة دالة مساعدة للحصول على صورة من عنصر الجدول
 const getTableItemImage = (item) => {
   // v-data-table في Vuetify 3 يمكن أن تكون بنية العنصر مختلفة
+  let imagePath = null;
   if (typeof item === 'object') {
     if (item.raw) {
-      return item.raw.image || 'https://cdn.vuetifyjs.com/images/john.jpg'
+      imagePath = item.raw.image;
     } else if (item.columns && item.columns.image) {
-      return item.columns.image.value || 'https://cdn.vuetifyjs.com/images/john.jpg'
+      imagePath = item.columns.image.value;
     } else if (item.image) {
-      return item.image
+      imagePath = item.image;
     }
   }
-  return 'https://cdn.vuetifyjs.com/images/john.jpg'
+  return getStudentImage(imagePath);
 }
 
 // دالة مساعدة للحصول على حالة العنصر
