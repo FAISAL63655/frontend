@@ -31,5 +31,12 @@ export default defineConfig({
         secure: false
       }
     }
+  },
+  preview: {
+    port: 4173,
+    // Allow all hosts in preview mode
+    host: '0.0.0.0',
+    // Explicitly allow Render domains
+    allowedHosts: ['frontend-smuk.onrender.com', '.onrender.com', 'localhost']
   }
 })
