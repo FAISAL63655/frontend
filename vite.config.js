@@ -2,13 +2,11 @@ import { fileURLToPath, URL } from 'node:url'
 
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
-import vueDevTools from 'vite-plugin-vue-devtools'
 
 // https://vite.dev/config/
-export default defineConfig(({ mode }) => ({
+export default defineConfig({
   plugins: [
-    vue(),
-    vueDevTools(),
+    vue()
   ],
   resolve: {
     alias: {
@@ -17,29 +15,21 @@ export default defineConfig(({ mode }) => ({
   },
   build: {
     // Generate source maps for better debugging
-    sourcemap: mode === 'development',
+    sourcemap: false,
     // Optimize chunks for better performance
-    chunkSizeWarningLimit: 1000,
-    rollupOptions: {
-      output: {
-        manualChunks: {
-          'vendor': ['vue', 'vue-router', 'pinia', 'axios'],
-          'ui': ['vuetify', '@mdi/font']
-        }
-      }
-    }
+    chunkSizeWarningLimit: 1000
   },
   // Configure server options
   server: {
     port: 5173,
     strictPort: false,
     // Configure proxy for API requests during development
-    proxy: mode === 'development' ? {
+    proxy: {
       '/api': {
         target: 'http://localhost:8000',
         changeOrigin: true,
         secure: false
       }
-    } : undefined
+    }
   }
-}))
+})

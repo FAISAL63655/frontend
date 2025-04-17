@@ -1,7 +1,8 @@
 import './assets/main.css'
 
 // Vuetify
-import '@mdi/font/css/materialdesignicons.css'
+// استخدام CDN لخطوط MDI بدلاً من الحزمة
+// import '@mdi/font/css/materialdesignicons.css'
 import 'vuetify/styles'
 
 import { createApp } from 'vue'
