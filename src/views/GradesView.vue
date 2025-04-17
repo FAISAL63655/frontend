@@ -845,29 +845,14 @@
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
 import axios from 'axios'
+import api, { getFullImageUrl } from '@/services/apiConfig'
 import EncouragementDialog from '@/components/EncouragementDialog.vue'
 import NotificationHelper from '@/services/NotificationHelper'
 
-// تهيئة Axios وتعيين عنوان الخادم الافتراضي
-axios.defaults.baseURL = 'http://localhost:8000/api'
-
-// دالة للتعامل مع URL الصور بشكل صحيح
-const getFullImageUrl = (imagePath) => {
+// دالة مساعدة للتأكد من وجود صورة أو استخدام صورة افتراضية
+const getStudentImage = (imagePath) => {
   if (!imagePath) return 'https://cdn.vuetifyjs.com/images/john.jpg'
-
-  // إذا كان المسار بالفعل URL كامل
-  if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
-    return imagePath
-  }
-
-  // استخراج المسار النسبي من URL كامل إذا كان العنوان من الخادم الخلفي
-  if (imagePath.includes('/media/')) {
-    const mediaPath = imagePath.substring(imagePath.indexOf('/media/'))
-    return `http://localhost:8000${mediaPath}`
-  }
-
-  // للمسارات النسبية
-  return `http://localhost:8000/media/students/${imagePath}`
+  return getFullImageUrl(imagePath)
 }
 
 // متغيرات جديدة للتصميم
@@ -1059,7 +1044,7 @@ watch(selectedDate, async (newValue, oldValue) => {
 onMounted(async () => {
   try {
     // Fetch classes
-    const classesResponse = await axios.get('classes/')
+    const classesResponse = await api.get('classes/')
     classes.value = classesResponse.data || []
 
     console.log('Fetched classes:', classes.value)
@@ -1069,7 +1054,7 @@ onMounted(async () => {
     }
 
     // Fetch sections
-    const sectionsResponse = await axios.get('sections/')
+    const sectionsResponse = await api.get('sections/')
     sections.value = sectionsResponse.data || []
 
     console.log('Fetched sections:', sections.value)
@@ -1079,7 +1064,7 @@ onMounted(async () => {
     }
 
     // Fetch subjects
-    const subjectsResponse = await axios.get('subjects/')
+    const subjectsResponse = await api.get('subjects/')
     subjects.value = subjectsResponse.data || []
 
     console.log('Fetched subjects:', subjects.value)
@@ -1110,7 +1095,7 @@ const fetchStudents = async () => {
 
   try {
     // جلب الطلاب حسب الصف والفصل
-    const response = await axios.get('students/by_class_section/', {
+    const response = await api.get('students/by_class_section/', {
       params: {
         class_id: selectedClass.value,
         section_id: selectedSection.value
@@ -1121,7 +1106,7 @@ const fetchStudents = async () => {
 
     // إنشاء قائمة الطلاب مع الدرجات الافتراضية
     const studentsWithGrades = response.data.map(student => {
-      const imageUrl = student.image ? getFullImageUrl(student.image) : 'https://cdn.vuetifyjs.com/images/john.jpg';
+      const imageUrl = student.image ? getStudentImage(student.image) : 'https://cdn.vuetifyjs.com/images/john.jpg';
       console.log(`صورة الطالب ${student.name}:`, student.image, ' -> ', imageUrl);
 
       return {
@@ -1156,7 +1141,7 @@ const fetchStudents = async () => {
     for (const student of studentsWithGrades) {
       try {
         // جلب درجات المادة المحددة
-        const gradesResponse = await axios.get('grades/by_student/', {
+        const gradesResponse = await api.get('grades/by_student/', {
           params: {
             student_id: student.id,
             subject_id: selectedSubject.value
@@ -1190,7 +1175,7 @@ const fetchStudents = async () => {
         // إذا كانت المادة المحددة هي مادة فرعية، نجلب الدرجات من المادة الرئيسية
         if (isSubSubject && selectedSubjectObj.parent_subject) {
           // جلب درجات المادة الرئيسية
-          const parentGradesResponse = await axios.get('grades/by_student/', {
+          const parentGradesResponse = await api.get('grades/by_student/', {
             params: {
               student_id: student.id,
               subject_id: selectedSubjectObj.parent_subject
@@ -1228,7 +1213,7 @@ const fetchStudents = async () => {
           const dateToCheck = selectedDate.value || new Date().toISOString().split('T')[0]
 
           // جلب سجلات الحضور للطالب
-          const attendanceResponse = await axios.get('attendances/by_student/', {
+          const attendanceResponse = await api.get('attendances/by_student/', {
             params: {
               student_id: student.id
             }
@@ -1254,7 +1239,7 @@ const fetchStudents = async () => {
         if (currentAssignment.value) {
           try {
             // البحث عن تسليم واجب موجود للطالب والواجب
-            const submissionsResponse = await axios.get('assignment-submissions/by_student/', {
+            const submissionsResponse = await api.get('assignment-submissions/by_student/', {
               params: {
                 student_id: student.id
               }
@@ -1390,7 +1375,7 @@ const saveGrade = async (student, type) => {
     saveTimers[timerKey] = setTimeout(async () => {
       try {
         // البحث عن درجة موجودة للطالب والمادة ونوع الدرجة
-        const existingGradesResponse = await axios.get('grades/by_student/', {
+        const existingGradesResponse = await api.get('grades/by_student/', {
           params: {
             student_id: student.id,
             subject_id: subjectIdToSave
@@ -1422,7 +1407,7 @@ const saveGrade = async (student, type) => {
         let response
         if (existingGrade) {
           // تحديث الدرجة الموجودة
-          response = await axios.put(`grades/${existingGrade.id}/`, {
+          response = await api.put(`grades/${existingGrade.id}/`, {
             student: student.id,
             subject: subjectIdToSave,
             type: actualType, // استخدام النوع المحول إذا كان النوع هو "homework"
@@ -1455,7 +1440,7 @@ const saveGrade = async (student, type) => {
           alert(`تم حفظ درجة ${gradeTypeText} لمادة ${subjectName} بنجاح`)
         } else {
           // إنشاء درجة جديدة
-          response = await axios.post('grades/', {
+          response = await api.post('grades/', {
             student: student.id,
             subject: subjectIdToSave,
             type: actualType, // استخدام النوع المحول إذا كان النوع هو "homework"
@@ -1624,7 +1609,7 @@ const saveAssignmentSubmission = async (student, status) => {
     student.assignmentStatus = status
 
     // البحث عن تسليم واجب موجود للطالب والواجب
-    const submissionsResponse = await axios.get('assignment-submissions/by_student/', {
+    const submissionsResponse = await api.get('assignment-submissions/by_student/', {
       params: {
         student_id: student.id
       }
@@ -1837,7 +1822,7 @@ const updateCurrentAssignment = async () => {
     const assignmentTitle = currentAssignment.value.title
 
     // تحديث الواجب
-    const response = await axios.put(`assignments/${currentAssignment.value.id}/`, {
+    const response = await api.put(`assignments/${currentAssignment.value.id}/`, {
       title: currentAssignment.value.title,
       description: currentAssignment.value.description || '',
       score: Number(currentAssignment.value.score) || 10,
@@ -1886,7 +1871,7 @@ const saveNote = async (student) => {
 
     try {
       // البحث عن جدول للصف والفصل والمادة
-      const schedulesResponse = await axios.get('schedules/', {
+      const schedulesResponse = await api.get('schedules/', {
         params: {
           class_name: selectedClass.value,
           section: selectedSection.value,
@@ -1909,7 +1894,7 @@ const saveNote = async (student) => {
     const subjectName = subjects.value.find(s => s.id === selectedSubject.value)?.name || 'المادة المحددة'
 
     // إنشاء ملاحظة جديدة
-    const response = await axios.post('notes/', {
+    const response = await api.post('notes/', {
       student: student.id,
       content: student.noteContent,
       type: student.noteType,
@@ -1988,7 +1973,7 @@ const addAssignment = async () => {
     const subjectName = subjects.value.find(s => s.id === selectedSubject.value)?.name || 'المادة المحددة'
 
     // إنشاء واجب جديد
-    const response = await axios.post('assignments/', {
+    const response = await api.post('assignments/', {
       title: newAssignment.value.title,
       description: newAssignment.value.description || '',
       score: Number(newAssignment.value.score) || 10,
@@ -2129,7 +2114,7 @@ const fetchCurrentAssignment = async () => {
   if (!selectedSubject.value) return
 
   try {
-    const response = await axios.get('assignments/', {
+    const response = await api.get('assignments/', {
       params: {
         subject: selectedSubject.value,
         ordering: '-due_date'
