@@ -1,8 +1,8 @@
 import axios from 'axios';
 
 // تكوين لتحديد ما إذا كان يجب استخدام بيانات وهمية
-// استخدم البيانات الوهمية فقط في بيئة التطوير وليس في الإنتاج
-const USE_MOCK_DATA = import.meta.env.MODE === 'development' && import.meta.env.VITE_USE_MOCK_DATA === 'true';
+// استخدم البيانات الوهمية في بيئة التطوير أو عندما تكون مطلوبة صراحة
+const USE_MOCK_DATA = import.meta.env.VITE_USE_MOCK_DATA === 'true' || import.meta.env.MODE === 'development';
 
 // Crear una instancia de axios con configuración personalizada
 const api = axios.create({
@@ -63,19 +63,20 @@ const mockData = {
   '/dashboard/recent-alerts/': []
 };
 
-// Interceptor para simular respuestas de la API durante el desarrollo
+// معترض لمحاكاة استجابات API أثناء التطوير أو عندما تكون النقاط النهائية غير موجودة
 api.interceptors.request.use(async (config) => {
+  // التحقق مما إذا كان يجب استخدام البيانات الوهمية
   if (USE_MOCK_DATA) {
-    const url = config.url.replace(/\/$/, ''); // Eliminar la barra final si existe
+    const url = config.url.replace(/\/$/, ''); // إزالة الشرطة النهائية إذا وجدت
 
-    // Verificar si tenemos datos simulados para esta URL
+    // التحقق مما إذا كانت لدينا بيانات وهمية لهذا URL
     if (mockData[url] || mockData[url + '/']) {
       console.log(`Using mock data for ${url}`);
 
-      // Simular un retraso de red (opcional)
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // محاكاة تأخير الشبكة (اختياري)
+      await new Promise(resolve => setTimeout(resolve, 300));
 
-      // Cancelar la solicitud real y devolver datos simulados
+      // إلغاء الطلب الحقيقي وإرجاع البيانات الوهمية
       const mockResponse = { data: mockData[url] || mockData[url + '/'] };
       return Promise.reject({
         config,
@@ -87,19 +88,29 @@ api.interceptors.request.use(async (config) => {
   return config;
 });
 
-// Interceptor para manejar errores y respuestas simuladas
+// معترض لمعالجة الأخطاء والاستجابات المحاكاة
 api.interceptors.response.use(
   response => response,
   error => {
-    // Si es una respuesta simulada, devolver los datos simulados
+    // إذا كانت استجابة محاكاة، فقم بإرجاع البيانات المحاكاة
     if (error.isAxiosMock) {
       return Promise.resolve(error.response);
     }
 
-    // Registrar el error real en la consola
+    // التحقق مما إذا كان الخطأ هو 404 ولدينا بيانات وهمية لهذا URL
+    if (error.response && error.response.status === 404) {
+      const url = error.config.url.replace(/\/$/, ''); // إزالة الشرطة النهائية إذا وجدت
+
+      if (mockData[url] || mockData[url + '/']) {
+        console.log(`Endpoint ${url} not found, using mock data instead`);
+        return Promise.resolve({ data: mockData[url] || mockData[url + '/'] });
+      }
+    }
+
+    // تسجيل الخطأ الحقيقي في وحدة التحكم
     console.error('API Error:', error);
 
-    // Rechazar la promesa para que el código que llama pueda manejar el error
+    // رفض الوعد حتى يتمكن الكود الذي يستدعي من التعامل مع الخطأ
     return Promise.reject(error);
   }
 );

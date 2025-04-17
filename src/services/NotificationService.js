@@ -1,4 +1,4 @@
-import axios from 'axios';
+import api from './apiConfig';
 
 /**
  * خدمة التنبيهات
@@ -10,7 +10,7 @@ class NotificationService {
    */
   static async getNotifications() {
     try {
-      const response = await axios.get('notifications/');
+      const response = await api.get('notifications/');
       return response.data;
     } catch (error) {
       console.error('Error fetching notifications:', error);
@@ -24,7 +24,7 @@ class NotificationService {
    */
   static async getUnreadNotifications() {
     try {
-      const response = await axios.get('notifications/unread/');
+      const response = await api.get('notifications/unread/');
       return response.data;
     } catch (error) {
       console.error('Error fetching unread notifications:', error);
@@ -39,7 +39,7 @@ class NotificationService {
    */
   static async markAsRead(id) {
     try {
-      const response = await axios.post(`notifications/${id}/mark_as_read/`);
+      const response = await api.post(`notifications/${id}/mark_as_read/`);
       return response.data;
     } catch (error) {
       console.error('Error marking notification as read:', error);
@@ -53,7 +53,7 @@ class NotificationService {
    */
   static async markAllAsRead() {
     try {
-      const response = await axios.post('notifications/mark_all_as_read/');
+      const response = await api.post('notifications/mark_all_as_read/');
       return response.data;
     } catch (error) {
       console.error('Error marking all notifications as read:', error);
@@ -68,7 +68,7 @@ class NotificationService {
    */
   static async createNotification(notification) {
     try {
-      const response = await axios.post('notifications/', notification);
+      const response = await api.post('notifications/', notification);
       return response.data;
     } catch (error) {
       console.error('Error creating notification:', error);
@@ -83,7 +83,7 @@ class NotificationService {
    */
   static async deleteNotification(id) {
     try {
-      const response = await axios.delete(`notifications/${id}/`);
+      const response = await api.delete(`notifications/${id}/`);
       return response.data;
     } catch (error) {
       console.error('Error deleting notification:', error);

@@ -369,21 +369,50 @@ onMounted(async () => {
 const fetchStats = async () => {
   isLoadingStats.value = true
   try {
+    // محاولة الحصول على الإحصائيات من API
     const response = await api.get('/dashboard/stats/')
     stats.value = response.data
     console.log('Stats loaded successfully:', stats.value)
   } catch (error) {
-    console.error('Error fetching stats:', error)
-    // Fallback to dummy data
-    stats.value = {
-      totalStudents: 120,
-      attendanceRate: 92,
-      assignmentsCount: 5,
-      alertsCount: 3
+    console.error('API Error:', error)
+
+    // التحقق من البيانات الفعلية من الباك إند
+    try {
+      // محاولة الحصول على عدد الطلاب من API
+      const studentsResponse = await api.get('/students/')
+      const studentsCount = studentsResponse.data.length || studentsResponse.data.count || 0
+
+      // محاولة الحصول على عدد الواجبات من API
+      const assignmentsResponse = await api.get('/assignments/')
+      const assignmentsCount = assignmentsResponse.data.length || assignmentsResponse.data.count || 0
+
+      // محاولة الحصول على عدد التنبيهات من API
+      const notificationsResponse = await api.get('/notifications/')
+      const notificationsCount = notificationsResponse.data.filter(n => !n.is_read).length || 0
+
+      // تحديث الإحصائيات بالبيانات الفعلية
+      stats.value = {
+        totalStudents: studentsCount,
+        attendanceRate: 95, // قيمة افتراضية لنسبة الحضور
+        assignmentsCount: assignmentsCount,
+        alertsCount: notificationsCount
+      }
+      console.log('Stats compiled from actual data:', stats.value)
+    } catch (innerError) {
+      console.error('Error fetching actual data:', innerError)
+      // الرجوع إلى البيانات الوهمية
+      stats.value = {
+        totalStudents: 120,
+        attendanceRate: 92,
+        assignmentsCount: 5,
+        alertsCount: 3
+      }
+      console.log('Using fallback dummy data for stats')
     }
   } finally {
     isLoadingStats.value = false
   }
+
 }
 
 // Fetch today's schedule from API
@@ -395,7 +424,32 @@ const fetchTodaySchedule = async () => {
     console.log('Schedule loaded successfully:', todaySchedule.value)
   } catch (error) {
     console.error('Error fetching today schedule:', error)
-    // Fallback to dummy data
+
+    // محاولة الحصول على الجدول من API الجدول الدراسي
+    try {
+      const schedulesResponse = await api.get('/schedules/')
+      if (schedulesResponse.data && schedulesResponse.data.length > 0) {
+        // تحويل بيانات الجدول إلى التنسيق المطلوب
+        todaySchedule.value = schedulesResponse.data.map(schedule => ({
+          subject: schedule.subject_name || schedule.subject || 'مادة غير معروفة',
+          class: schedule.class_name || schedule.class || 'صف غير معروف',
+          section: schedule.section_name || schedule.section || 'أ',
+          time: schedule.time || schedule.start_time || '8:00 - 8:45',
+          duration: schedule.duration || 45,
+          classId: schedule.class_id || 1,
+          sectionId: schedule.section_id || 1,
+          subjectId: schedule.subject_id || 1
+        })).slice(0, 4) // عرض أول 4 حصص فقط
+
+        console.log('Schedule compiled from actual data:', todaySchedule.value)
+        return
+      }
+    } catch (innerError) {
+      console.error('Error fetching schedules:', innerError)
+    }
+
+    // الرجوع إلى البيانات الوهمية
+    console.log('Using fallback dummy data for schedule')
     todaySchedule.value = [
       {
         subject: 'القرآن الكريم',
