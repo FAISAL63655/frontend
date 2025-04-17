@@ -152,7 +152,7 @@ onMounted(() => {
       <!-- Navigation Drawer -->
       <v-navigation-drawer v-model="drawer" location="right" elevation="3" class="app-drawer">
         <v-list-item
-          title="أحمد محمد"
+          title="فيصل الجطيلي"
           subtitle="معلم"
           class="user-profile"
         >

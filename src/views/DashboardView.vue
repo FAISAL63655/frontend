@@ -4,7 +4,7 @@
       <v-card-text>
         <div class="d-flex flex-column flex-md-row align-center justify-space-between">
           <div class="mb-4 mb-md-0">
-            <h1 class="text-h4 text-white mb-2">مرحباً بك، أحمد</h1>
+            <h1 class="text-h4 text-white mb-2">مرحباً بك، فيصل الجطيلي</h1>
             <p class="text-subtitle-1 text-white text-opacity-75 mb-0">لديك {{ stats.alertsCount }} تنبيهات جديدة اليوم</p>
           </div>
           <v-avatar size="120" color="white" class="elevation-4">
