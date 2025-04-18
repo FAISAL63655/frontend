@@ -726,13 +726,36 @@ const resetImageToDefault = () => {
 
 // دالة للتعامل مع أخطاء تحميل الصور في الجدول
 const handleImageError = (item) => {
-  console.error('StudentsView: خطأ في تحميل صورة الطالب:', item)
+  console.error('StudentsView: خطأ في تحميل صورة الطالب')
 
-  // الحصول على الطالب من القائمة
-  const student = item.raw || item
-  if (student) {
+  // الصورة الافتراضية
+  const defaultImage = 'https://cdn.vuetifyjs.com/images/john.jpg'
+
+  try {
+    // التحقق من وجود العنصر
+    if (!item) {
+      console.log('handleImageError: العنصر غير موجود');
+      return;
+    }
+
+    // الحصول على الطالب من القائمة
+    let student = null;
+
+    if (typeof item === 'object') {
+      if (item.raw) {
+        student = item.raw;
+      } else {
+        student = item;
+      }
+    }
+
     // تعيين الصورة الافتراضية
-    student.image = 'https://cdn.vuetifyjs.com/images/john.jpg'
+    if (student) {
+      student.image = defaultImage;
+      console.log('handleImageError: تم تعيين الصورة الافتراضية للطالب:', student.name || 'unknown');
+    }
+  } catch (error) {
+    console.error('handleImageError: خطأ في معالجة خطأ الصورة:', error);
   }
 }
 
@@ -740,10 +763,18 @@ const handleImageError = (item) => {
 const handleDeleteDialogImageError = () => {
   console.error('StudentsView: خطأ في تحميل صورة الطالب في حوار الحذف')
 
-  // التحقق من وجود الطالب المراد حذفه
-  if (studentToDelete.value) {
-    // تعيين الصورة الافتراضية
-    studentToDelete.value.image = 'https://cdn.vuetifyjs.com/images/john.jpg'
+  // الصورة الافتراضية
+  const defaultImage = 'https://cdn.vuetifyjs.com/images/john.jpg'
+
+  try {
+    // التحقق من وجود الطالب المراد حذفه
+    if (studentToDelete.value) {
+      // تعيين الصورة الافتراضية
+      studentToDelete.value.image = defaultImage
+      console.log('handleDeleteDialogImageError: تم تعيين الصورة الافتراضية للطالب:', studentToDelete.value.name || 'unknown');
+    }
+  } catch (error) {
+    console.error('handleDeleteDialogImageError: خطأ في معالجة خطأ الصورة:', error);
   }
 }
 
@@ -845,14 +876,21 @@ const fetchStudents = async () => {
 
       // التعامل مع الصورة بشكل صحيح
       let imageUrl = 'https://cdn.vuetifyjs.com/images/john.jpg';
-      if (student.image) {
-        // استخدام image_url إذا كانت موجودة (من الخادم)
+      try {
         if (student.image_url) {
-          imageUrl = student.image_url;
-        } else {
+          // استخدام image_url إذا كانت موجودة (من الخادم)
+          // إصلاح الشرطة المزدوجة في المسار
+          let fixedUrl = student.image_url;
+          if (typeof fixedUrl === 'string' && fixedUrl.includes('//')) {
+            fixedUrl = fixedUrl.replace(/([^:])\/{2,}/g, '$1/');
+          }
+          imageUrl = fixedUrl;
+        } else if (student.image) {
           // استخدام دالة getStudentImage للحصول على المسار الكامل
           imageUrl = getStudentImage(student.image);
         }
+      } catch (error) {
+        console.error(`خطأ في معالجة صورة الطالب ${student.name}:`, error);
       }
       console.log(`صورة الطالب ${student.name}:`, student.image, ' -> ', imageUrl);
 
@@ -1280,64 +1318,99 @@ watch(studentForm, (newValue) => {
 
 // إضافة دالة مساعدة للحصول على صورة من عنصر الجدول
 const getTableItemImage = (item) => {
+  // الصورة الافتراضية
+  const defaultImage = 'https://cdn.vuetifyjs.com/images/john.jpg';
+
+  // التحقق من وجود العنصر
+  if (!item) {
+    console.log('getTableItemImage: العنصر غير موجود');
+    return defaultImage;
+  }
+
   // v-data-table في Vuetify 3 يمكن أن تكون بنية العنصر مختلفة
   let imagePath = null;
   let student = null;
 
-  if (typeof item === 'object') {
-    if (item.raw) {
-      student = item.raw;
-      imagePath = item.raw.image;
-    } else if (item.columns && item.columns.image) {
-      imagePath = item.columns.image.value;
-    } else if (item.image) {
-      student = item;
-      imagePath = item.image;
-    }
-  }
-
-  // التحقق من وجود مسار صورة صالح
-  if (!imagePath || imagePath.includes('undefined') || imagePath.includes('null')) {
-    // إذا لم يكن هناك مسار صورة صالح، استخدم الصورة الافتراضية
-    const defaultImage = 'https://cdn.vuetifyjs.com/images/john.jpg';
-
-    // تحديث الصورة في الكائن الأصلي إذا كان موجودًا
-    if (student) {
-      student.image = defaultImage;
+  try {
+    if (typeof item === 'object') {
+      if (item.raw) {
+        student = item.raw;
+        imagePath = student.image;
+      } else if (item.columns && item.columns.image) {
+        imagePath = item.columns.image.value;
+      } else if (item.image) {
+        student = item;
+        imagePath = item.image;
+      }
     }
 
+    // التحقق من وجود مسار صورة صالح
+    if (!imagePath || typeof imagePath !== 'string' || imagePath.includes('undefined') || imagePath.includes('null')) {
+      // إذا لم يكن هناك مسار صورة صالح، استخدم الصورة الافتراضية
+
+      // تحديث الصورة في الكائن الأصلي إذا كان موجودًا
+      if (student) {
+        student.image = defaultImage;
+      }
+
+      return defaultImage;
+    }
+
+    return getStudentImage(imagePath);
+  } catch (error) {
+    console.error('getTableItemImage: خطأ في الحصول على صورة الطالب:', error);
     return defaultImage;
   }
-
-  return getStudentImage(imagePath);
 }
 
 // دالة مساعدة للحصول على حالة العنصر
 const getTableItemStatus = (item) => {
-  if (typeof item === 'object') {
-    if (item.raw) {
-      return item.raw.status || 'active'
-    } else if (item.columns && item.columns.status) {
-      return item.columns.status.value || 'active'
-    } else if (item.status) {
-      return item.status
-    }
+  // التحقق من وجود العنصر
+  if (!item) {
+    console.log('getTableItemStatus: العنصر غير موجود');
+    return 'active';
   }
-  return 'active'
+
+  try {
+    if (typeof item === 'object') {
+      if (item.raw) {
+        return item.raw.status || 'active'
+      } else if (item.columns && item.columns.status) {
+        return item.columns.status.value || 'active'
+      } else if (item.status) {
+        return item.status
+      }
+    }
+    return 'active'
+  } catch (error) {
+    console.error('getTableItemStatus: خطأ في الحصول على حالة الطالب:', error);
+    return 'active';
+  }
 }
 
 // دالة مساعدة إضافية للحصول على اسم الطالب من عنصر الجدول
 const getTableItemName = (item) => {
-  if (typeof item === 'object') {
-    if (item.raw) {
-      return item.raw.name || ''
-    } else if (item.columns && item.columns.name) {
-      return item.columns.name.value || ''
-    } else if (item.name) {
-      return item.name
-    }
+  // التحقق من وجود العنصر
+  if (!item) {
+    console.log('getTableItemName: العنصر غير موجود');
+    return '';
   }
-  return ''
+
+  try {
+    if (typeof item === 'object') {
+      if (item.raw) {
+        return item.raw.name || ''
+      } else if (item.columns && item.columns.name) {
+        return item.columns.name.value || ''
+      } else if (item.name) {
+        return item.name
+      }
+    }
+    return ''
+  } catch (error) {
+    console.error('getTableItemName: خطأ في الحصول على اسم الطالب:', error);
+    return '';
+  }
 }
 </script>
 
