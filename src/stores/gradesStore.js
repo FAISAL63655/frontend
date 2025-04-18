@@ -41,6 +41,10 @@ export const useGradesStore = defineStore('grades', () => {
   const getAttendanceByStudentAndDate = computed(() => {
     return (studentId, date) => {
       try {
+        if (!attendance.value) {
+          console.log(`Attendance object is not initialized for student ${studentId} and date ${date}`)
+          return null
+        }
         const key = `${studentId}-${date}`
         return attendance.value[key]
       } catch (error) {

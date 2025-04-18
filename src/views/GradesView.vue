@@ -1217,7 +1217,8 @@ const fetchStudents = async () => {
   if (!selectedClass.value || !selectedSection.value || !selectedSubject.value) return
 
   try {
-    console.time('fetchStudents')
+    const studentsTimerLabel = `fetchStudents-${Date.now()}`
+    console.time(studentsTimerLabel)
 
     // Usar el store para obtener los estudiantes
     const studentsData = await gradesStore.fetchStudentsByClassAndSection(selectedClass.value, selectedSection.value)
@@ -1274,9 +1275,10 @@ const fetchStudents = async () => {
     const studentIds = studentsWithGrades.map(student => student.id)
 
     // Obtener todas las calificaciones en una sola solicitud
-    console.time('fetchGrades')
+    const gradesTimerLabel = `fetchGrades-${Date.now()}`
+    console.time(gradesTimerLabel)
     await gradesStore.fetchGradesForStudents(studentIds)
-    console.timeEnd('fetchGrades')
+    console.timeEnd(gradesTimerLabel)
 
     // Procesar las calificaciones para cada estudiante
     for (const student of studentsWithGrades) {
@@ -1427,6 +1429,8 @@ const fetchStudents = async () => {
 
     // تحديث حالة الواجبات بعد جلب الطلاب
     updateAssignmentStatus()
+
+    console.timeEnd(studentsTimerLabel)
   } catch (error) {
     console.error('Error fetching students:', error)
     if (error.response) {
@@ -2222,9 +2226,18 @@ const openStudentDetails = async (student) => {
     // Obtener la fecha actual para filtrar la asistencia
     const currentDate = new Date().toISOString().split('T')[0]
 
+    // Inicializar el objeto de asistencia si no existe
+    if (!gradesStore.attendance.value) {
+      gradesStore.attendance.value = {}
+    }
+
     // Cargar la asistencia si no está en caché
-    if (Object.keys(gradesStore.attendance.value).filter(key => key.startsWith(`${studentId}-`)).length === 0) {
-      await gradesStore.fetchAttendanceForDate(currentDate, selectedClass.value, selectedSection.value)
+    try {
+      if (Object.keys(gradesStore.attendance.value).filter(key => key.startsWith(`${studentId}-`)).length === 0) {
+        await gradesStore.fetchAttendanceForDate(currentDate, selectedClass.value, selectedSection.value)
+      }
+    } catch (error) {
+      console.error(`Error fetching attendance for student ${studentId}:`, error)
     }
 
     // Obtener todos los registros de asistencia del estudiante mediante API
