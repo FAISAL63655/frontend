@@ -375,25 +375,42 @@ const fetchStats = async () => {
     console.log('Stats loaded successfully:', stats.value)
   } catch (error) {
     console.error('API Error:', error)
+    console.log('Endpoint /dashboard/stats not found, using actual data instead')
 
     // التحقق من البيانات الفعلية من الباك إند
     try {
       // محاولة الحصول على عدد الطلاب من API
       const studentsResponse = await api.get('/students/')
       const studentsCount = studentsResponse.data.length || studentsResponse.data.count || 0
+      console.log('Fetched students count:', studentsCount)
 
-      // محاولة الحصول على عدد الواجبات من API
-      const assignmentsResponse = await api.get('/assignments/')
+      // محاولة الحصول على عدد الواجبات النشطة من API
+      const today = new Date().toISOString().split('T')[0]
+      const assignmentsResponse = await api.get('/assignments/', {
+        params: {
+          due_date_gte: today
+        }
+      })
       const assignmentsCount = assignmentsResponse.data.length || assignmentsResponse.data.count || 0
+      console.log('Fetched active assignments count:', assignmentsCount)
+
+      // محاولة الحصول على نسبة الحضور من API
+      const attendanceResponse = await api.get('/attendances/')
+      const attendanceRecords = attendanceResponse.data || []
+      const totalRecords = attendanceRecords.length
+      const presentRecords = attendanceRecords.filter(record => record.status === 'present').length
+      const attendanceRate = totalRecords > 0 ? Math.round((presentRecords / totalRecords) * 100) : 0
+      console.log('Calculated attendance rate:', attendanceRate, '% (', presentRecords, '/', totalRecords, ')')
 
       // محاولة الحصول على عدد التنبيهات من API
       const notificationsResponse = await api.get('/notifications/')
       const notificationsCount = notificationsResponse.data.filter(n => !n.is_read).length || 0
+      console.log('Fetched unread notifications count:', notificationsCount)
 
       // تحديث الإحصائيات بالبيانات الفعلية
       stats.value = {
         totalStudents: studentsCount,
-        attendanceRate: 95, // قيمة افتراضية لنسبة الحضور
+        attendanceRate: attendanceRate,
         assignmentsCount: assignmentsCount,
         alertsCount: notificationsCount
       }
@@ -412,7 +429,6 @@ const fetchStats = async () => {
   } finally {
     isLoadingStats.value = false
   }
-
 }
 
 // Fetch today's schedule from API
