@@ -367,9 +367,26 @@
               hide-details
               type="number"
               min="0"
-              max="60"
+              max="40"
               style="width: 70px"
               @update:model-value="saveGrade(item, 'final')"
+            ></v-text-field>
+          </div>
+        </template>
+
+        <!-- Quran Column -->
+        <template #[`item.quran`]="{ item }">
+          <div class="d-flex align-center">
+            <v-text-field
+              v-model="item.quran"
+              density="compact"
+              variant="outlined"
+              hide-details
+              type="number"
+              min="0"
+              max="20"
+              style="width: 70px"
+              @update:model-value="saveGrade(item, 'quran')"
             ></v-text-field>
           </div>
         </template>
