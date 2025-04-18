@@ -351,11 +351,12 @@
                   variant="outlined"
                   prepend-icon="mdi-camera"
                   accept="image/*"
-                  @change="previewSelectedImage"
+                  @update:model-value="previewSelectedImage"
                   hide-details
                   density="compact"
                   class="mb-5 mx-auto"
                   style="max-width: 300px"
+                  clearable
                 ></v-file-input>
 
                 <v-divider class="mb-6"></v-divider>
@@ -555,15 +556,42 @@ const previewSelectedImage = (file) => {
   // إعادة تعيين الملف أولاً
   studentForm.value.imageFile = null
 
-  if (file && file instanceof File) {
-    // التحقق من أن الملف هو كائن File صالح
+  // إذا كان الملف null أو undefined، قم بإعادة تعيين الصورة إلى القيمة الافتراضية
+  if (!file) {
+    console.log('لم يتم تحديد ملف أو تم مسحه')
+    resetImageToDefault()
+    return
+  }
+
+  // التحقق من أن الملف هو كائن File صالح
+  if (file instanceof File) {
     try {
+      // التحقق من نوع الملف وحجمه
+      if (!file.type.startsWith('image/')) {
+        console.error('نوع الملف غير صالح. يجب أن يكون صورة:', file.type)
+        resetImageToDefault()
+        return
+      }
+
+      if (file.size > 5 * 1024 * 1024) { // 5MB كحد أقصى
+        console.error('حجم الملف كبير جدًا. يجب أن يكون أقل من 5 ميجابايت:', file.size)
+        resetImageToDefault()
+        return
+      }
+
+      // تعيين الملف للإرسال في الطلب
+      studentForm.value.imageFile = file
+
       const reader = new FileReader()
-      studentForm.value.imageFile = file // تعيين الملف للإرسال في الطلب
 
       reader.onload = (e) => {
-        studentForm.value.image = e.target.result
-        console.log('تم تحميل صورة معاينة:', e.target.result.substring(0, 50) + '...')
+        if (e.target && e.target.result) {
+          studentForm.value.image = e.target.result
+          console.log('تم تحميل صورة معاينة:', e.target.result.substring(0, 50) + '...')
+        } else {
+          console.error('فشل في قراءة نتيجة الملف')
+          resetImageToDefault()
+        }
       }
 
       reader.onerror = (error) => {
@@ -577,7 +605,8 @@ const previewSelectedImage = (file) => {
       resetImageToDefault()
     }
   } else {
-    // إذا لم يكن هناك ملف أو كان الملف غير صالح
+    // إذا لم يكن الملف من نوع File
+    console.error('الملف ليس من نوع File:', typeof file)
     resetImageToDefault()
   }
 }
@@ -904,6 +933,8 @@ const saveStudent = async () => {
 
     // Create FormData for file upload
     const formData = new FormData()
+
+    // إضافة الحقول الأساسية
     formData.append('name', studentForm.value.name)
     formData.append('class_name', studentForm.value.class_id)  // في الخادم الخلفي، الحقل هو class_name
     formData.append('section', studentForm.value.section_id)   // في الخادم الخلفي، الحقل هو section
@@ -911,10 +942,17 @@ const saveStudent = async () => {
 
     // التحقق من وجود ملف صورة صالح
     if (studentForm.value.imageFile && studentForm.value.imageFile instanceof File) {
-      formData.append('image', studentForm.value.imageFile)
-      console.log('تم إرفاق ملف صورة للإرسال:', studentForm.value.imageFile.name)
+      // التحقق من نوع الملف وحجمه مرة أخرى للتأكد
+      if (studentForm.value.imageFile.type.startsWith('image/') &&
+          studentForm.value.imageFile.size <= 5 * 1024 * 1024) {
+        formData.append('image', studentForm.value.imageFile)
+        console.log('تم إرفاق ملف صورة للإرسال:', studentForm.value.imageFile.name)
+      } else {
+        console.warn('تم تخطي ملف الصورة لأنه غير صالح:',
+                   studentForm.value.imageFile.type, studentForm.value.imageFile.size)
+      }
     } else {
-      console.log('تم إرفاق ملف صورة للإرسال:', studentForm.value.imageFile)
+      console.log('لم يتم إرفاق ملف صورة جديد')
     }
 
     console.log('Saving student with data:', {
