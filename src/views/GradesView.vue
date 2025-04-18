@@ -1355,16 +1355,21 @@ const fetchStudents = async () => {
           }
 
           // Obtener la asistencia del estudiante para la fecha seleccionada
-          const dateAttendance = gradesStore.getAttendanceByStudentAndDate(student.id, dateToCheck)
+          try {
+            const dateAttendance = gradesStore.getAttendanceByStudentAndDate(student.id, dateToCheck)
 
-          if (dateAttendance) {
-            // تعيين حالة الحضور
-            student.attendance = dateAttendance.status
-            console.log(`Found attendance for student ${student.id} on ${dateToCheck}: ${dateAttendance.status}`)
-          } else {
-            // إذا لم يتم العثور على سجل حضور، نعين الحالة إلى حاضر افتراضيًا
-            student.attendance = 'present'
-            console.log(`No attendance found for student ${student.id} on ${dateToCheck}, setting to default 'present'`)
+            if (dateAttendance) {
+              // تعيين حالة الحضور
+              student.attendance = dateAttendance.status
+              console.log(`Found attendance for student ${student.id} on ${dateToCheck}: ${dateAttendance.status}`)
+            } else {
+              // إذا لم يتم العثور على سجل حضور، نعين الحالة إلى حاضر افتراضيًا
+              student.attendance = 'present'
+              console.log(`No attendance found for student ${student.id} on ${dateToCheck}, setting to default 'present'`)
+            }
+          } catch (attendanceError) {
+            console.error(`Error fetching attendance for student ${student.id}:`, attendanceError)
+            student.attendance = 'present' // Valor por defecto en caso de error
           }
         } catch (attendanceError) {
           console.error(`Error fetching attendance for student ${student.id}:`, attendanceError)
@@ -1382,11 +1387,17 @@ const fetchStudents = async () => {
             }
 
             // Obtener la entrega del estudiante para la tarea actual
-            const existingSubmission = gradesStore.getSubmissionsByStudentAndAssignment(student.id, assignmentId)
+            try {
+              const existingSubmission = gradesStore.getSubmissionsByStudentAndAssignment(student.id, assignmentId)
 
-            if (existingSubmission) {
-              // تعيين حالة تسليم الواجب
-              student.assignmentStatus = existingSubmission.status
+              if (existingSubmission) {
+                // تعيين حالة تسليم الواجب
+                student.assignmentStatus = existingSubmission.status
+              }
+            } catch (submissionError) {
+              console.error(`Error getting submission for student ${student.id}:`, submissionError)
+              // Usar valor por defecto
+              student.assignmentStatus = 'not_submitted'
             }
           } catch (submissionError) {
             console.error(`Error fetching assignment submissions for student ${student.id}:`, submissionError)
@@ -2181,12 +2192,12 @@ const addAssignment = async () => {
 
 // Open student details
 const openStudentDetails = async (student) => {
-  console.log('Opening details for student:', student)
-  selectedStudent.value = student
-  showStudentDetailsDialog.value = true
-
-  // Cargar datos del estudiante
   try {
+    console.log('Opening details for student:', student)
+    selectedStudent.value = student
+    showStudentDetailsDialog.value = true
+
+    // Cargar datos del estudiante
     console.time('loadStudentDetails')
 
     // Cargar calificaciones desde el store
@@ -2198,7 +2209,12 @@ const openStudentDetails = async (student) => {
     }
 
     // Obtener las calificaciones del estudiante
-    studentGrades.value = gradesStore.getGradesByStudent(studentId) || []
+    try {
+      studentGrades.value = gradesStore.getGradesByStudent(studentId) || []
+    } catch (error) {
+      console.error(`Error getting grades for student ${studentId}:`, error)
+      studentGrades.value = []
+    }
     console.log('Fetched grades for student details:', studentGrades.value)
 
     // Cargar asistencia (usar datos existentes si están disponibles)

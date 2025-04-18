@@ -17,34 +17,59 @@ export const useGradesStore = defineStore('grades', () => {
   // Getters
   const getStudentsByClassAndSection = computed(() => {
     return (classId, sectionId) => {
-      const key = `${classId}-${sectionId}`
-      return students.value[key] || []
+      try {
+        const key = `${classId}-${sectionId}`
+        return students.value[key] || []
+      } catch (error) {
+        console.error(`Error in getStudentsByClassAndSection for class ${classId} and section ${sectionId}:`, error)
+        return []
+      }
     }
   })
 
   const getGradesByStudent = computed(() => {
     return (studentId) => {
-      return grades.value[studentId] || []
+      try {
+        return grades.value[studentId] || []
+      } catch (error) {
+        console.error(`Error in getGradesByStudent for student ${studentId}:`, error)
+        return []
+      }
     }
   })
 
   const getAttendanceByStudentAndDate = computed(() => {
     return (studentId, date) => {
-      const key = `${studentId}-${date}`
-      return attendance.value[key]
+      try {
+        const key = `${studentId}-${date}`
+        return attendance.value[key]
+      } catch (error) {
+        console.error(`Error in getAttendanceByStudentAndDate for student ${studentId} and date ${date}:`, error)
+        return null
+      }
     }
   })
 
   const getAssignmentsBySubject = computed(() => {
     return (subjectId) => {
-      return assignments.value[subjectId] || []
+      try {
+        return assignments.value[subjectId] || []
+      } catch (error) {
+        console.error(`Error in getAssignmentsBySubject for subject ${subjectId}:`, error)
+        return []
+      }
     }
   })
 
   const getSubmissionsByStudentAndAssignment = computed(() => {
     return (studentId, assignmentId) => {
-      const key = `${studentId}-${assignmentId}`
-      return submissions.value[key]
+      try {
+        const key = `${studentId}-${assignmentId}`
+        return submissions.value[key]
+      } catch (error) {
+        console.error(`Error in getSubmissionsByStudentAndAssignment for student ${studentId} and assignment ${assignmentId}:`, error)
+        return null
+      }
     }
   })
 
@@ -58,13 +83,13 @@ export const useGradesStore = defineStore('grades', () => {
   // Acciones
   const fetchStudentsByClassAndSection = async (classId, sectionId) => {
     const key = `students-${classId}-${sectionId}`
-    
+
     // Si los datos están en caché y son válidos, no hacer la solicitud
     if (isCacheValid(key)) {
       console.log('Using cached students data for class', classId, 'section', sectionId)
       return getStudentsByClassAndSection.value(classId, sectionId)
     }
-    
+
     try {
       console.log('Fetching students for class', classId, 'section', sectionId)
       const response = await api.get('students/', {
@@ -73,16 +98,20 @@ export const useGradesStore = defineStore('grades', () => {
           section: sectionId
         }
       })
-      
+
       // Guardar en caché
       const cacheKey = `${classId}-${sectionId}`
       students.value[cacheKey] = response.data
       lastFetch.value[key] = Date.now()
-      
+
       return response.data
     } catch (error) {
       console.error('Error fetching students:', error)
-      throw error
+      // Inicializar un array vacío para esta clase y sección
+      const cacheKey = `${classId}-${sectionId}`
+      students.value[cacheKey] = []
+      lastFetch.value[key] = Date.now() // Evitar solicitudes repetidas
+      return []
     }
   }
 
@@ -92,22 +121,22 @@ export const useGradesStore = defineStore('grades', () => {
       const key = `grades-${id}`
       return isCacheValid(key)
     })
-    
+
     if (allCached) {
       console.log('Using cached grades data for all students')
       return studentIds.map(id => grades.value[id] || [])
     }
-    
+
     try {
       console.log('Fetching grades for multiple students:', studentIds)
-      
+
       // Hacer una sola solicitud para todos los estudiantes
       const response = await api.get('grades/batch/', {
         params: {
           student_ids: studentIds.join(',')
         }
       })
-      
+
       // Guardar en caché por estudiante
       if (response.data) {
         studentIds.forEach(id => {
@@ -116,51 +145,55 @@ export const useGradesStore = defineStore('grades', () => {
           lastFetch.value[`grades-${id}`] = Date.now()
         })
       }
-      
+
       return response.data
     } catch (error) {
       console.error('Error fetching grades for students:', error)
-      
+
       // Si el endpoint batch no existe, hacer solicitudes individuales
       console.log('Falling back to individual requests')
       const results = []
-      
+
       for (const id of studentIds) {
         const key = `grades-${id}`
-        
+
         // Si los datos están en caché y son válidos, usar esos
         if (isCacheValid(key)) {
           results.push(grades.value[id] || [])
           continue
         }
-        
+
         try {
           const response = await api.get('grades/by_student/', {
             params: { student_id: id }
           })
-          
+
           grades.value[id] = response.data || []
           lastFetch.value[key] = Date.now()
+          console.log(`Grades for student ${id} in subject 1:`, response.data.filter(grade => grade.subject === 1))
           results.push(response.data || [])
         } catch (err) {
           console.error(`Error fetching grades for student ${id}:`, err)
+          // Inicializar un array vacío para este estudiante
+          grades.value[id] = []
+          lastFetch.value[key] = Date.now() // Evitar solicitudes repetidas
           results.push([])
         }
       }
-      
+
       return results
     }
   }
 
   const fetchAttendanceForDate = async (date, classId, sectionId) => {
     const key = `attendance-${date}-${classId}-${sectionId}`
-    
+
     // Si los datos están en caché y son válidos, no hacer la solicitud
     if (isCacheValid(key)) {
       console.log('Using cached attendance data for', date)
       return attendance.value
     }
-    
+
     try {
       console.log('Fetching attendance for date', date)
       const response = await api.get('attendances/by_date/', {
@@ -170,7 +203,7 @@ export const useGradesStore = defineStore('grades', () => {
           section: sectionId
         }
       })
-      
+
       // Guardar en caché
       if (response.data) {
         response.data.forEach(record => {
@@ -178,24 +211,29 @@ export const useGradesStore = defineStore('grades', () => {
           attendance.value[recordKey] = record
         })
       }
-      
+
       lastFetch.value[key] = Date.now()
       return response.data
     } catch (error) {
       console.error('Error fetching attendance:', error)
-      throw error
+      // Inicializar el objeto de asistencia para evitar errores
+      if (!attendance.value) {
+        attendance.value = {}
+      }
+      lastFetch.value[key] = Date.now() // Evitar solicitudes repetidas
+      return []
     }
   }
 
   const fetchAssignmentsBySubject = async (subjectId) => {
     const key = `assignments-${subjectId}`
-    
+
     // Si los datos están en caché y son válidos, no hacer la solicitud
     if (isCacheValid(key)) {
       console.log('Using cached assignments data for subject', subjectId)
       return assignments.value[subjectId] || []
     }
-    
+
     try {
       console.log('Fetching assignments for subject', subjectId)
       const response = await api.get('assignments/', {
@@ -204,27 +242,32 @@ export const useGradesStore = defineStore('grades', () => {
           ordering: '-due_date'
         }
       })
-      
+
       // Guardar en caché
       assignments.value[subjectId] = response.data || []
       lastFetch.value[key] = Date.now()
-      
+
       return response.data
     } catch (error) {
       console.error('Error fetching assignments:', error)
-      throw error
+      // Inicializar un array vacío para este subject
+      if (!assignments.value[subjectId]) {
+        assignments.value[subjectId] = []
+      }
+      lastFetch.value[key] = Date.now() // Evitar solicitudes repetidas
+      return []
     }
   }
 
-  const fetchSubmissionsForAssignment = async (assignmentId, studentIds) => {
+  const fetchSubmissionsForAssignment = async (assignmentId, studentIds = []) => {
     const key = `submissions-${assignmentId}`
-    
+
     // Si los datos están en caché y son válidos, no hacer la solicitud
     if (isCacheValid(key)) {
       console.log('Using cached submissions data for assignment', assignmentId)
       return submissions.value
     }
-    
+
     try {
       console.log('Fetching submissions for assignment', assignmentId)
       const response = await api.get('assignment-submissions/by_assignment/', {
@@ -232,7 +275,7 @@ export const useGradesStore = defineStore('grades', () => {
           assignment_id: assignmentId
         }
       })
-      
+
       // Guardar en caché
       if (response.data) {
         response.data.forEach(submission => {
@@ -240,12 +283,21 @@ export const useGradesStore = defineStore('grades', () => {
           submissions.value[submissionKey] = submission
         })
       }
-      
+
       lastFetch.value[key] = Date.now()
       return response.data
     } catch (error) {
       console.error('Error fetching submissions:', error)
-      throw error
+      // Inicializar valores vacíos para todos los estudiantes
+      if (studentIds.length > 0) {
+        studentIds.forEach(studentId => {
+          const submissionKey = `${studentId}-${assignmentId}`
+          if (!submissions.value[submissionKey]) {
+            submissions.value[submissionKey] = null
+          }
+        })
+      }
+      return []
     }
   }
 
@@ -266,14 +318,14 @@ export const useGradesStore = defineStore('grades', () => {
     attendance,
     assignments,
     submissions,
-    
+
     // Getters
     getStudentsByClassAndSection,
     getGradesByStudent,
     getAttendanceByStudentAndDate,
     getAssignmentsBySubject,
     getSubmissionsByStudentAndAssignment,
-    
+
     // Acciones
     fetchStudentsByClassAndSection,
     fetchGradesForStudents,
