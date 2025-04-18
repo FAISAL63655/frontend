@@ -436,79 +436,105 @@ const fetchTodaySchedule = async () => {
   isLoadingSchedule.value = true
   try {
     const response = await api.get('/dashboard/today-schedule/')
-    todaySchedule.value = response.data
-    console.log('Schedule loaded successfully:', todaySchedule.value)
-  } catch (error) {
-    console.error('Error fetching today schedule:', error)
-
-    // محاولة الحصول على الجدول من API الجدول الدراسي
-    try {
-      const schedulesResponse = await api.get('/schedules/')
-      if (schedulesResponse.data && schedulesResponse.data.length > 0) {
-        // تحويل بيانات الجدول إلى التنسيق المطلوب
-        todaySchedule.value = schedulesResponse.data.map(schedule => ({
-          subject: schedule.subject_name || schedule.subject || 'مادة غير معروفة',
-          class: schedule.class_name || schedule.class || 'صف غير معروف',
-          section: schedule.section_name || schedule.section || 'أ',
-          time: schedule.time || schedule.start_time || '8:00 - 8:45',
-          duration: schedule.duration || 45,
-          classId: schedule.class_id || 1,
-          sectionId: schedule.section_id || 1,
-          subjectId: schedule.subject_id || 1
-        })).slice(0, 4) // عرض أول 4 حصص فقط
-
-        console.log('Schedule compiled from actual data:', todaySchedule.value)
-        return
-      }
-    } catch (innerError) {
-      console.error('Error fetching schedules:', innerError)
+    if (response.data && response.data.length > 0) {
+      todaySchedule.value = response.data
+      console.log('Schedule loaded successfully from dashboard API:', todaySchedule.value)
+      return
+    } else {
+      console.log('No schedule data returned from dashboard API, trying schedules API')
     }
 
-    // الرجوع إلى البيانات الوهمية
-    console.log('Using fallback dummy data for schedule')
-    todaySchedule.value = [
-      {
-        subject: 'القرآن الكريم',
-        class: 'الصف الثالث',
-        section: 'أ',
-        time: '8:00 - 8:45',
-        duration: 45,
-        classId: 3,
-        sectionId: 1,
-        subjectId: 1
-      },
-      {
-        subject: 'التوحيد',
-        class: 'الصف الثالث',
-        section: 'ب',
-        time: '9:00 - 9:45',
-        duration: 45,
-        classId: 3,
-        sectionId: 2,
-        subjectId: 2
-      },
-      {
-        subject: 'الفقه',
-        class: 'الصف الرابع',
-        section: 'أ',
-        time: '10:00 - 10:45',
-        duration: 45,
-        classId: 4,
-        sectionId: 1,
-        subjectId: 3
-      },
-      {
-        subject: 'الحديث',
-        class: 'الصف الرابع',
-        section: 'ب',
-        time: '11:00 - 11:45',
-        duration: 45,
-        classId: 4,
-        sectionId: 2,
-        subjectId: 4
-      }
-    ]
+    // إذا لم يتم العثور على جدول لليوم، نحاول الحصول على أي جدول
+    const schedulesResponse = await api.get('/schedules/')
+    if (schedulesResponse.data && schedulesResponse.data.length > 0) {
+      // تحويل بيانات الجدول إلى التنسيق المطلوب
+      todaySchedule.value = schedulesResponse.data.map(schedule => {
+        // الحصول على البيانات من الاستجابة
+        const subject = schedule.subject_display || schedule.subject_name || schedule.subject || 'مادة غير معروفة'
+        const className = schedule.class_name_display || schedule.class_name || schedule.class || 'صف غير معروف'
+        const section = schedule.section_display || schedule.section_name || schedule.section || 'أ'
+
+        // تحديد الوقت بناءً على رقم الحصة
+        let time = '8:00 - 8:45'
+        if (schedule.period === 1 || schedule.period === '1') time = '8:00 - 8:45'
+        else if (schedule.period === 2 || schedule.period === '2') time = '8:45 - 9:30'
+        else if (schedule.period === 3 || schedule.period === '3') time = '9:30 - 10:15'
+        else if (schedule.period === 4 || schedule.period === '4') time = '10:15 - 11:00'
+        else if (schedule.period === 5 || schedule.period === '5') time = '11:00 - 11:45'
+        else if (schedule.period === 6 || schedule.period === '6') time = '11:45 - 12:30'
+        else if (schedule.period === 7 || schedule.period === '7') time = '12:30 - 13:15'
+
+        return {
+          id: schedule.id,
+          subject: subject,
+          class: className,
+          section: section,
+          time: schedule.time || time,
+          duration: schedule.duration || 45,
+          classId: schedule.class_name_id || schedule.class_id || 1,
+          sectionId: schedule.section_id || 1,
+          subjectId: schedule.subject_id || 1,
+          period: schedule.period || 1,
+          day: schedule.day || 0
+        }
+      }).sort((a, b) => a.period - b.period) // ترتيب الحصص حسب رقم الحصة
+
+      console.log('Schedule compiled from schedules API:', todaySchedule.value)
+      return
+    }
+  } catch (error) {
+    console.error('Error fetching today schedule:', error)
   } finally {
+    // إذا لم يتم العثور على أي جدول، نستخدم البيانات الوهمية
+    if (!todaySchedule.value || todaySchedule.value.length === 0) {
+      console.log('No schedule data found, using fallback dummy data')
+      todaySchedule.value = [
+        {
+          id: 1,
+          subject: 'القرآن الكريم',
+          class: 'الصف الثالث',
+          section: 'أ',
+          time: '8:00 - 8:45',
+          duration: 45,
+          classId: 3,
+          sectionId: 1,
+          subjectId: 1
+        },
+        {
+          id: 2,
+          subject: 'التوحيد',
+          class: 'الصف الثالث',
+          section: 'ب',
+          time: '8:45 - 9:30',
+          duration: 45,
+          classId: 3,
+          sectionId: 2,
+          subjectId: 2
+        },
+        {
+          id: 3,
+          subject: 'الفقه',
+          class: 'الصف الرابع',
+          section: 'أ',
+          time: '9:30 - 10:15',
+          duration: 45,
+          classId: 4,
+          sectionId: 1,
+          subjectId: 3
+        },
+        {
+          id: 4,
+          subject: 'الحديث',
+          class: 'الصف الرابع',
+          section: 'ب',
+          time: '10:15 - 11:00',
+          duration: 45,
+          classId: 4,
+          sectionId: 2,
+          subjectId: 4
+        }
+      ]
+    }
     isLoadingSchedule.value = false
   }
 }
