@@ -556,12 +556,21 @@ const getStudentImage = (imagePath) => {
 
   // معالجة مشكلة الشرطة المزدوجة في المسار
   if (typeof imagePath === 'string') {
-    // إزالة الشرطة المزدوجة في المسار
-    const originalPath = imagePath;
-    imagePath = imagePath.replace(/([^:])\/{2,}/g, '$1/');
+    // تحقق من وجود شرطة مزدوجة في المسار
+    if (imagePath.includes('//')) {
+      const originalPath = imagePath;
+      // إصلاح الشرطة المزدوجة بعد البروتوكول
+      if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+        // الحفاظ على الشرطة المزدوجة بعد البروتوكول
+        const protocol = imagePath.startsWith('https://') ? 'https://' : 'http://';
+        const restOfUrl = imagePath.substring(protocol.length).replace(/\/+/g, '/');
+        imagePath = protocol + restOfUrl;
+      } else {
+        // إزالة الشرطة المزدوجة في المسارات الأخرى
+        imagePath = imagePath.replace(/\/+/g, '/');
+      }
 
-    // طباعة المسار بعد الإصلاح إذا تم تغييره
-    if (originalPath !== imagePath) {
+      // طباعة المسار بعد الإصلاح
       console.log(`StudentsView: تم إصلاح الشرطة المزدوجة من ${originalPath} إلى ${imagePath}`);
     }
   }
@@ -583,7 +592,13 @@ const getStudentImage = (imagePath) => {
           : apiBaseUrl
 
       // إنشاء مسار جديد باستخدام المجلد الصحيح
-      const newUrl = `${baseUrl}/media/students/${filename}`
+      // التأكد من عدم وجود شرطة مزدوجة في المسار الجديد
+      let newUrl = '';
+      if (baseUrl.endsWith('/')) {
+        newUrl = `${baseUrl}media/students/${filename}`;
+      } else {
+        newUrl = `${baseUrl}/media/students/${filename}`;
+      }
       console.log(`StudentsView: تم تحويل مسار الصورة من ${imagePath} إلى ${newUrl}`)
       return newUrl
     }
