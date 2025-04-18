@@ -670,8 +670,8 @@
                   </v-list-item-subtitle>
                   <template #append>
                     <div class="d-flex">
-                      <v-btn icon="mdi-pencil" size="small" color="primary" class="me-1" @click="editAssignmentSubmission(assignment, index)" title="تعديل"></v-btn>
-                      <v-btn icon="mdi-delete" size="small" color="error" @click="deleteAssignmentSubmission(assignment, index)" title="حذف"></v-btn>
+                      <v-btn icon="mdi-pencil" size="small" color="primary" class="me-1" title="تعديل"></v-btn>
+                      <v-btn icon="mdi-delete" size="small" color="error" title="حذف"></v-btn>
                     </div>
                   </template>
                 </v-list-item>
@@ -883,7 +883,7 @@ import { getInitials, getAvatarColor } from '@/utils/imageUtils'
 import { useGradesStore } from '@/stores/gradesStore'
 
 // دالة مساعدة للتأكد من وجود صورة أو استخدام الحرف الأول من الاسم
-const getStudentImage = (imagePath, studentName = '') => {
+const getStudentImage = (imagePath) => {
   // إذا لم يكن هناك مسار، استخدم null لعرض الحرف الأول من الاسم
   if (!imagePath) {
     console.log('GradesView: لا يوجد مسار للصورة، سيتم استخدام الحرف الأول من الاسم')
@@ -1063,7 +1063,7 @@ const newAssignment = ref({
   title: '',
   description: '',
   score: 10,
-  dueDate: new Date().toISOString().substr(0, 10)
+  dueDate: new Date().toISOString().substring(0, 10)
 })
 
 // Student details data
@@ -1275,70 +1275,142 @@ const fetchStudents = async () => {
 
     // Obtener todas las calificaciones en una sola solicitud
     console.time('fetchGrades')
-    const allGrades = await gradesStore.fetchGradesForStudents(studentIds)
+    await gradesStore.fetchGradesForStudents(studentIds)
     console.timeEnd('fetchGrades')
 
     // Procesar las calificaciones para cada estudiante
     for (const student of studentsWithGrades) {
-      // Obtener las calificaciones del estudiante del store
-      const studentGrades = gradesStore.getGradesByStudent.value(student.id) || []
+      try {
+        // Obtener las calificaciones del estudiante del store
+        const studentGrades = gradesStore.getGradesByStudent.value(student.id) || []
 
-      // Filtrar las calificaciones para la materia seleccionada
-      const subjectGrades = studentGrades.filter(grade => grade.subject === selectedSubject.value)
-      console.log(`Grades for student ${student.id} in subject ${selectedSubject.value}:`, subjectGrades)
+        // Filtrar las calificaciones para la materia seleccionada
+        const subjectGrades = studentGrades.filter(grade => grade.subject === selectedSubject.value)
+        console.log(`Grades for student ${student.id} in subject ${selectedSubject.value}:`, subjectGrades)
 
-      // Asignar las calificaciones al estudiante
-      if (subjectGrades.length > 0) {
-        for (const grade of subjectGrades) {
-          if (grade.type === 'theory') {
-            student.theory = grade.score
-          } else if (grade.type === 'practical') {
-            // التحقق من قيمة max_score للتمييز بين الشفوي والواجبات
-            if (grade.max_score === 10) {
-              // هذه درجة واجبات
-              student.homework = grade.score
-            } else {
-              // هذه درجة شفوي
-              student.practical = grade.score
-            }
-          } else if (grade.type === 'participation') {
-            student.participation = grade.score
-          } else if (grade.type === 'quran') {
-            student.quran = grade.score
-          } else if (grade.type === 'final') {
-            student.final = grade.score
-          }
-        }
-      }
-
-      // Si es una materia secundaria, obtener calificaciones de la materia principal
-      if (isSubSubject && selectedSubjectObj.parent_subject) {
-        const parentSubjectGrades = studentGrades.filter(grade => grade.subject === selectedSubjectObj.parent_subject)
-        console.log(`Parent subject grades for student ${student.id}:`, parentSubjectGrades)
-
-        if (parentSubjectGrades.length > 0) {
-          for (const grade of parentSubjectGrades) {
-            if (grade.type === 'theory' && student.theory === null) {
+        // Asignar las calificaciones al estudiante
+        if (subjectGrades.length > 0) {
+          for (const grade of subjectGrades) {
+            if (grade.type === 'theory') {
               student.theory = grade.score
             } else if (grade.type === 'practical') {
               // التحقق من قيمة max_score للتمييز بين الشفوي والواجبات
-              if (grade.max_score === 10 && student.homework === null) {
+              if (grade.max_score === 10) {
                 // هذه درجة واجبات
                 student.homework = grade.score
-              } else if (grade.max_score !== 10 && student.practical === null) {
+              } else {
                 // هذه درجة شفوي
                 student.practical = grade.score
               }
-            } else if (grade.type === 'participation' && student.participation === null) {
+            } else if (grade.type === 'participation') {
               student.participation = grade.score
-            } else if (grade.type === 'quran' && student.quran === null) {
+            } else if (grade.type === 'quran') {
               student.quran = grade.score
-            } else if (grade.type === 'final' && student.final === null) {
+            } else if (grade.type === 'final') {
               student.final = grade.score
             }
           }
         }
+
+        // Si es una materia secundaria, obtener calificaciones de la materia principal
+        if (isSubSubject && selectedSubjectObj.parent_subject) {
+          const parentSubjectGrades = studentGrades.filter(grade => grade.subject === selectedSubjectObj.parent_subject)
+          console.log(`Parent subject grades for student ${student.id}:`, parentSubjectGrades)
+
+          if (parentSubjectGrades.length > 0) {
+            for (const grade of parentSubjectGrades) {
+              if (grade.type === 'theory' && student.theory === null) {
+                student.theory = grade.score
+              } else if (grade.type === 'practical') {
+                // التحقق من قيمة max_score للتمييز بين الشفوي والواجبات
+                if (grade.max_score === 10 && student.homework === null) {
+                  // هذه درجة واجبات
+                  student.homework = grade.score
+                } else if (grade.max_score !== 10 && student.practical === null) {
+                  // هذه درجة شفوي
+                  student.practical = grade.score
+                }
+              } else if (grade.type === 'participation' && student.participation === null) {
+                student.participation = grade.score
+              } else if (grade.type === 'quran' && student.quran === null) {
+                student.quran = grade.score
+              } else if (grade.type === 'final' && student.final === null) {
+                student.final = grade.score
+              }
+            }
+          }
+        }
+
+        // جلب حالة الحضور للطالب
+        try {
+          // استخدام التاريخ المحدد أو التاريخ الحالي إذا لم يتم تحديد تاريخ
+          const dateToCheck = selectedDate.value || new Date().toISOString().split('T')[0]
+
+          // Obtener la asistencia del store
+          if (!gradesStore.attendance.value[`${student.id}-${dateToCheck}`]) {
+            // Si no está en caché, cargar la asistencia para toda la clase
+            if (Object.keys(gradesStore.attendance.value).length === 0) {
+              await gradesStore.fetchAttendanceForDate(dateToCheck, selectedClass.value, selectedSection.value)
+            }
+          }
+
+          // Obtener la asistencia del estudiante para la fecha seleccionada
+          const dateAttendance = gradesStore.getAttendanceByStudentAndDate.value(student.id, dateToCheck)
+
+          if (dateAttendance) {
+            // تعيين حالة الحضور
+            student.attendance = dateAttendance.status
+            console.log(`Found attendance for student ${student.id} on ${dateToCheck}: ${dateAttendance.status}`)
+          } else {
+            // إذا لم يتم العثور على سجل حضور، نعين الحالة إلى حاضر افتراضيًا
+            student.attendance = 'present'
+            console.log(`No attendance found for student ${student.id} on ${dateToCheck}, setting to default 'present'`)
+          }
+        } catch (attendanceError) {
+          console.error(`Error fetching attendance for student ${student.id}:`, attendanceError)
+        }
+
+        // جلب تسليمات الواجبات للطالب
+        if (currentAssignment.value) {
+          try {
+            // Obtener las entregas del store
+            const assignmentId = currentAssignment.value.id
+
+            // Si no están en caché, cargar las entregas para toda la clase
+            if (Object.keys(gradesStore.submissions.value).filter(key => key.includes(`-${assignmentId}`)).length === 0) {
+              await gradesStore.fetchSubmissionsForAssignment(assignmentId, studentIds)
+            }
+
+            // Obtener la entrega del estudiante para la tarea actual
+            const existingSubmission = gradesStore.getSubmissionsByStudentAndAssignment.value(student.id, assignmentId)
+
+            if (existingSubmission) {
+              // تعيين حالة تسليم الواجب
+              student.assignmentStatus = existingSubmission.status
+            }
+          } catch (submissionError) {
+            console.error(`Error fetching assignment submissions for student ${student.id}:`, submissionError)
+          }
+        }
+
+        // استرجاع حالة تسليم الواجب من التخزين المحلي
+        try {
+          if (currentAssignment.value) {
+            const assignmentSubmissions = JSON.parse(localStorage.getItem('assignmentSubmissions') || '{}')
+            const key = `${student.id}-${currentAssignment.value.id}`
+
+            if (assignmentSubmissions[key]) {
+              student.assignmentStatus = assignmentSubmissions[key]
+              console.log(`Setting assignment status for student ${student.id} to ${assignmentSubmissions[key]} from localStorage`)
+            }
+          }
+        } catch (storageError) {
+          console.error('Error loading from localStorage:', storageError)
+        }
+      } catch (error) {
+        console.error(`Error processing student ${student.id}:`, error)
       }
+    }
 
         // جلب حالة الحضور للطالب
         try {
@@ -1404,6 +1476,7 @@ const fetchStudents = async () => {
 
             if (assignmentSubmissions[key]) {
               student.assignmentStatus = assignmentSubmissions[key]
+              console.log(`Setting assignment status for student ${student.id} to ${assignmentSubmissions[key]} from localStorage`)
             }
           }
         } catch (storageError) {
@@ -1417,7 +1490,7 @@ const fetchStudents = async () => {
     students.value = studentsWithGrades
 
     // تحديث حالة الواجبات بعد جلب الطلاب
-    await updateAssignmentStatus()
+    updateAssignmentStatus()
   } catch (error) {
     console.error('Error fetching students:', error)
     if (error.response) {
@@ -1830,7 +1903,7 @@ const saveAssignmentSubmission = async (student, status) => {
     }
 
     // تحديث حالة الواجبات
-    await updateAssignmentStatus()
+    updateAssignmentStatus()
 
     // الحصول على اسم المادة وعنوان الواجب
     const subjectName = subjects.value.find(s => s.id === selectedSubject.value)?.name || 'المادة المحددة'
@@ -2153,7 +2226,7 @@ const addAssignment = async () => {
       title: '',
       description: '',
       score: 10,
-      dueDate: new Date().toISOString().substr(0, 10)
+      dueDate: new Date().toISOString().substring(0, 10)
     }
 
     showAddAssignmentDialog.value = false
