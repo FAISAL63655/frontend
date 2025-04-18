@@ -140,6 +140,18 @@ export const getFullImageUrl = (imagePath) => {
     return `${baseUrl}${imagePath}`;
   }
 
+  // إذا كان المسار لا يحتوي على /media ولكنه يشير إلى صورة
+  if (imagePath.startsWith('students/')) {
+    // استخراج الجزء الأساسي من عنوان API
+    const baseUrl = apiBaseUrl.endsWith('/api/')
+      ? apiBaseUrl.slice(0, -4) // إزالة '/api'
+      : apiBaseUrl.endsWith('/api')
+        ? apiBaseUrl.slice(0, -3) // إزالة 'api'
+        : apiBaseUrl;
+
+    return `${baseUrl}/media/${imagePath}`;
+  }
+
   // إرجاع المسار كما هو إذا لم يتطابق مع أي من الحالات السابقة
   return imagePath;
 };

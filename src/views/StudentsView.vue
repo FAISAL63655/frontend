@@ -661,7 +661,17 @@ const fetchStudents = async () => {
       // طباعة البيانات الواردة من الخادم للتأكد من صحتها
       console.log('Raw student data from server:', student)
 
-      const imageUrl = student.image ? getStudentImage(student.image) : 'https://cdn.vuetifyjs.com/images/john.jpg';
+      // التعامل مع الصورة بشكل صحيح
+      let imageUrl = 'https://cdn.vuetifyjs.com/images/john.jpg';
+      if (student.image) {
+        // استخدام image_url إذا كانت موجودة (من الخادم)
+        if (student.image_url) {
+          imageUrl = student.image_url;
+        } else {
+          // استخدام دالة getStudentImage للحصول على المسار الكامل
+          imageUrl = getStudentImage(student.image);
+        }
+      }
       console.log(`صورة الطالب ${student.name}:`, student.image, ' -> ', imageUrl);
 
       return {
