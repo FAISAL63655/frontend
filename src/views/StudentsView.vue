@@ -491,8 +491,8 @@
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
-import axios from 'axios'
-import api, { getFullImageUrl } from '@/services/apiConfig'
+import api, { getFullImageUrl, batchRequests } from '@/services/apiConfig'
+import { useSimpleCacheStore } from '@/stores/simpleCache'
 
 // Data
 const classes = ref([])
@@ -567,27 +567,54 @@ const previewSelectedImage = (file) => {
   }
 }
 
+// الحصول على مخزن التخزين المؤقت
+const cacheStore = useSimpleCacheStore()
+
 // Fetch data on component mount
 onMounted(async () => {
   try {
-    // Fetch classes
-    const classesResponse = await api.get('classes/')
-    classes.value = classesResponse.data || []
+    // محاولة الحصول على البيانات من التخزين المؤقت أولاً
+    const cachedClasses = cacheStore.get('classes')
+    const cachedSections = cacheStore.get('sections')
 
-    console.log('Fetched classes:', classes.value)
+    if (cachedClasses && cachedSections) {
+      // استخدام البيانات المخزنة مؤقتًا
+      console.log('Using cached data for classes and sections')
+      classes.value = cachedClasses
+      sections.value = cachedSections
 
-    if (classes.value.length > 0) {
-      selectedClass.value = classes.value[0].id
-    }
+      if (classes.value.length > 0 && !selectedClass.value) {
+        selectedClass.value = classes.value[0].id
+      }
 
-    // Fetch sections
-    const sectionsResponse = await api.get('sections/')
-    sections.value = sectionsResponse.data || []
+      if (sections.value.length > 0 && !selectedSection.value) {
+        selectedSection.value = sections.value[0].id
+      }
+    } else {
+      // جلب البيانات من API باستخدام طلبات متعددة متوازية
+      console.log('Fetching classes and sections from API')
+      const [classesResponse, sectionsResponse] = await batchRequests([
+        'classes/',
+        'sections/'
+      ])
 
-    console.log('Fetched sections:', sections.value)
+      classes.value = classesResponse.data || []
+      sections.value = sectionsResponse.data || []
 
-    if (sections.value.length > 0) {
-      selectedSection.value = sections.value[0].id
+      // تخزين البيانات في التخزين المؤقت
+      cacheStore.set('classes', classes.value, 30 * 60 * 1000) // 30 دقيقة
+      cacheStore.set('sections', sections.value, 30 * 60 * 1000) // 30 دقيقة
+
+      console.log('Fetched and cached classes:', classes.value)
+      console.log('Fetched and cached sections:', sections.value)
+
+      if (classes.value.length > 0) {
+        selectedClass.value = classes.value[0].id
+      }
+
+      if (sections.value.length > 0) {
+        selectedSection.value = sections.value[0].id
+      }
     }
 
     // Fetch students
@@ -602,11 +629,26 @@ onMounted(async () => {
   }
 })
 
-// تعديل fetchStudents
+// تعديل fetchStudents لاستخدام التخزين المؤقت
 const fetchStudents = async () => {
   if (!selectedClass.value || !selectedSection.value) return
 
+  // إنشاء مفتاح للتخزين المؤقت بناءً على الصف والفصل
+  const cacheKey = `students:class:${selectedClass.value}:section:${selectedSection.value}`
+
+  // محاولة الحصول على البيانات من التخزين المؤقت
+  const cachedStudents = cacheStore.get(cacheKey)
+
+  if (cachedStudents) {
+    // استخدام البيانات المخزنة مؤقتًا
+    console.log(`Using cached data for students (class: ${selectedClass.value}, section: ${selectedSection.value})`)
+    students.value = cachedStudents
+    return
+  }
+
   try {
+    // جلب البيانات من API
+    console.log(`Fetching students from API (class: ${selectedClass.value}, section: ${selectedSection.value})`)
     const response = await api.get('students/by_class_section/', {
       params: {
         class_id: selectedClass.value,
@@ -635,6 +677,9 @@ const fetchStudents = async () => {
     })
 
     console.log('Processed students after mapping:', students.value)
+
+    // تخزين البيانات في التخزين المؤقت
+    cacheStore.set(cacheKey, students.value, 5 * 60 * 1000) // 5 دقائق
   } catch (error) {
     console.error('Error fetching students:', error)
     // For demo purposes, add some dummy data if API fails
@@ -757,7 +802,15 @@ const deleteStudent = async () => {
     console.log('Deleting student with ID:', studentToDelete.value.id)
 
     // إرسال طلب حذف الطالب إلى الخادم الخلفي
-    await axios.delete(`students/${studentToDelete.value.id}/`)
+    await api.delete(`students/${studentToDelete.value.id}/`)
+
+    // إبطال التخزين المؤقت للطلاب لأن البيانات تغيرت
+    const cacheKeyPattern = 'students:class:'
+    Object.keys(cacheStore.cache).forEach(key => {
+      if (key.startsWith(cacheKeyPattern)) {
+        cacheStore.remove(key)
+      }
+    })
 
     console.log('Student deleted successfully')
 
@@ -1017,7 +1070,7 @@ const addDummyData = () => {
 }
 
 // إضافة مراقبة للتغييرات في studentForm
-const watchStudentForm = watch(studentForm, (newValue) => {
+watch(studentForm, (newValue) => {
   console.log('Student form changed:', newValue)
 }, { deep: true })
 

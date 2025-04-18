@@ -26,12 +26,52 @@ api.interceptors.request.use(
   }
 );
 
-// إضافة معترض للاستجابات
+// إعدادات إعادة المحاولة
+const retryConfig = {
+  // عدد مرات إعادة المحاولة
+  maxRetries: 1,
+  // التأخير بين المحاولات (بالمللي ثانية)
+  retryDelay: 1000,
+  // أكواد الحالة التي يجب إعادة المحاولة معها
+  retryStatusCodes: [408, 429, 500, 502, 503, 504]
+};
+
+// إضافة معترض للاستجابات مع إعادة المحاولة
 api.interceptors.response.use(
   response => {
     return response;
   },
-  error => {
+  async error => {
+    // الحصول على تكوين الطلب
+    const config = error.config;
+
+    // إذا لم يتم تعيين عدد المحاولات، قم بتعيينه إلى 0
+    if (!config || config._retryCount === undefined) {
+      if (config) {
+        config._retryCount = 0;
+      }
+    }
+
+    // التحقق مما إذا كان يجب إعادة المحاولة
+    const shouldRetry =
+      config &&
+      config._retryCount < retryConfig.maxRetries &&
+      error.response &&
+      retryConfig.retryStatusCodes.includes(error.response.status);
+
+    if (shouldRetry) {
+      // زيادة عدد المحاولات
+      config._retryCount += 1;
+
+      // انتظار قبل إعادة المحاولة
+      await new Promise(resolve => setTimeout(resolve, retryConfig.retryDelay));
+
+      console.log(`Retrying API request (${config._retryCount}/${retryConfig.maxRetries}): ${config.url}`);
+
+      // إعادة المحاولة
+      return api(config);
+    }
+
     // معالجة الأخطاء المشتركة
     if (error.response) {
       // الخادم استجاب برمز حالة خارج نطاق 2xx
@@ -43,9 +83,38 @@ api.interceptors.response.use(
       // حدث خطأ أثناء إعداد الطلب
       console.error('API Error:', error.message);
     }
+
     return Promise.reject(error);
   }
 );
+
+/**
+ * دالة لتجميع طلبات متعددة في طلب واحد
+ * @param {Array} requests - مصفوفة من طلبات API
+ * @returns {Promise<Array>} - وعد بمصفوفة من الاستجابات
+ */
+export const batchRequests = async (requests) => {
+  try {
+    // تنفيذ جميع الطلبات بالتوازي
+    const responses = await Promise.all(requests.map(req => {
+      if (typeof req === 'string') {
+        // إذا كان الطلب عبارة عن سلسلة، فقم بتنفيذ طلب GET
+        return api.get(req);
+      } else if (typeof req === 'object') {
+        // إذا كان الطلب عبارة عن كائن، فقم بتنفيذ طلب API
+        const { method = 'get', url, params, data } = req;
+        return api({ method, url, params, data });
+      }
+      // إذا كان الطلب عبارة عن وعد، فقم بإرجاعه كما هو
+      return req;
+    }));
+
+    return responses;
+  } catch (error) {
+    console.error('Batch request error:', error);
+    throw error;
+  }
+};
 
 // تصدير النسخة المكونة من axios
 export default api;
@@ -53,24 +122,24 @@ export default api;
 // تصدير دالة مساعدة للحصول على عنوان URL كامل للصور
 export const getFullImageUrl = (imagePath) => {
   if (!imagePath) return null;
-  
+
   // إذا كان المسار يبدأ بـ http أو https، فهو مسار كامل بالفعل
   if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
     return imagePath;
   }
-  
+
   // إذا كان المسار يبدأ بـ /media، فأضف عنوان API الأساسي
   if (imagePath.startsWith('/media')) {
     // استخراج الجزء الأساسي من عنوان API (بدون /api/)
-    const baseUrl = apiBaseUrl.endsWith('/api/') 
+    const baseUrl = apiBaseUrl.endsWith('/api/')
       ? apiBaseUrl.slice(0, -4) // إزالة '/api'
-      : apiBaseUrl.endsWith('/api') 
+      : apiBaseUrl.endsWith('/api')
         ? apiBaseUrl.slice(0, -3) // إزالة 'api'
         : apiBaseUrl;
-    
+
     return `${baseUrl}${imagePath}`;
   }
-  
+
   // إرجاع المسار كما هو إذا لم يتطابق مع أي من الحالات السابقة
   return imagePath;
 };
