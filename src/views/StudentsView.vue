@@ -1165,12 +1165,12 @@ const getTableItemName = (item) => {
   --v-table-header-height: 56px;
 }
 
-.v-data-table >>> .v-table__wrapper > table > thead > tr > th,
-.v-data-table >>> .v-table__wrapper > table > tbody > tr > td {
+.v-data-table :deep(.v-table__wrapper > table > thead > tr > th),
+.v-data-table :deep(.v-table__wrapper > table > tbody > tr > td) {
   text-align: right;
 }
 
-.v-data-table >>> th.v-data-table__th--sortable .v-data-table-header__sort-icon {
+.v-data-table :deep(th.v-data-table__th--sortable .v-data-table-header__sort-icon) {
   margin-right: 8px;
   margin-left: 0;
 }

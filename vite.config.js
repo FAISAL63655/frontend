@@ -36,13 +36,10 @@ export default defineConfig({
         assetFileNames: 'assets/[ext]/[name]-[hash].[ext]'
       }
     },
-    // تقليل حجم البناء
-    minify: 'terser',
-    terserOptions: {
-      compress: {
-        drop_console: true,
-        drop_debugger: true
-      }
+    // تقليل حجم البناء باستخدام esbuild بدلاً من terser
+    minify: 'esbuild',
+    esbuildOptions: {
+      drop: ['console', 'debugger']
     }
   },
   // Configure server options
