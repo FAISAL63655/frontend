@@ -599,7 +599,7 @@
                   </template>
                   <v-list-item-title>
                     <strong>{{ grade.type }}:</strong> {{ grade.score }}
-                    <v-chip size="x-small" color="primary" class="ms-2">المادة: {{ getSubjectName(grade.subject) }}</v-chip>
+                    <v-chip size="x-small" color="primary" class="ms-2">المادة: {{ grade.subject }}</v-chip>
                   </v-list-item-title>
                   <v-list-item-subtitle>
                     <span class="text-caption">تاريخ التسجيل: {{ formatDate(grade.created_at) }}</span>
@@ -687,7 +687,7 @@
                   </template>
                   <v-list-item-title>
                     <strong>{{ note.content }}</strong>
-                    <v-chip size="x-small" color="primary" class="ms-2">المادة: {{ note.schedule_info }}</v-chip>
+                    <v-chip size="x-small" color="primary" class="ms-2">المادة: {{ note.subject_info }}</v-chip>
                   </v-list-item-title>
                   <v-list-item-subtitle>
                     <v-chip
@@ -2786,12 +2786,6 @@ const addDummyData = () => {
       noteType: 'negative'
     }
   ]
-}
-
-// Get subject name
-const getSubjectName = (subjectId) => {
-  const subject = subjects.value.find(s => s.id === subjectId)
-  return subject ? subject.name : 'Unknown'
 }
 </script>
 
