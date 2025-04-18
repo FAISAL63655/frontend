@@ -33,6 +33,11 @@ export const useGradesStore = defineStore('grades', () => {
   const getGradesByStudent = computed(() => {
     return (studentId) => {
       try {
+        // التأكد من وجود grades.value قبل الوصول إليه
+        if (!grades.value) {
+          grades.value = {}
+          console.log('Initialized grades object in getGradesByStudent')
+        }
         return grades.value[studentId] || []
       } catch (error) {
         console.error(`Error in getGradesByStudent for student ${studentId}:`, error)
@@ -139,6 +144,12 @@ export const useGradesStore = defineStore('grades', () => {
   }
 
   const fetchGradesForStudents = async (studentIds) => {
+    // تأكد من تهيئة كائن الدرجات
+    if (!grades.value) {
+      grades.value = {}
+      console.log('Initialized grades object in fetchGradesForStudents')
+    }
+
     // Si todos los estudiantes tienen datos en caché y son válidos, no hacer la solicitud
     const allCached = studentIds.every(id => {
       const key = `grades-${id}`

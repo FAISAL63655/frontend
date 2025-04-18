@@ -2217,47 +2217,53 @@ const openStudentDetails = async (student) => {
     selectedStudent.value = student
     showStudentDetailsDialog.value = true
 
-    // Cargar datos del estudiante
+    // تهيئة تخزين الدرجات إذا لم يكن موجودًا
+    if (!gradesStore.grades.value) {
+      gradesStore.grades.value = {}
+    }
+
+    // تحميل بيانات الطالب
     const timerLabel = `loadStudentDetails-${student.id}-${Date.now()}`
     console.time(timerLabel)
 
-    // Cargar calificaciones desde el store
+    // تحميل الدرجات من المتجر
     const studentId = student.id
 
-    // Si no están en caché, cargar las calificaciones
+    // إذا لم تكن الدرجات في التخزين المؤقت، قم بتحميل الدرجات
     if (!gradesStore.grades.value[studentId]) {
       await gradesStore.fetchGradesForStudents([studentId])
     }
 
-    // Obtener las calificaciones del estudiante
+    // الحصول على درجات الطالب
     try {
-      studentGrades.value = gradesStore.getGradesByStudent(studentId) || []
+      // التأكد من وجود درجات الطالب في المتجر قبل الوصول إليها
+      studentGrades.value = gradesStore.grades.value[studentId] || []
     } catch (error) {
       console.error(`Error getting grades for student ${studentId}:`, error)
       studentGrades.value = []
     }
     console.log('Fetched grades for student details:', studentGrades.value)
 
-    // Cargar asistencia (usar datos existentes si están disponibles)
-    // Obtener la fecha actual para filtrar la asistencia
+    // تحميل بيانات الحضور (استخدام البيانات الموجودة إذا كانت متاحة)
+    // الحصول على التاريخ الحالي لتصفية الحضور
     const currentDate = new Date().toISOString().split('T')[0]
 
-    // Inicializar el objeto de asistencia si no existe
+    // تهيئة كائن الحضور إذا لم يكن موجودًا
     if (!gradesStore.attendance.value) {
       gradesStore.attendance.value = {}
     }
 
-    // Crear un registro de asistencia por defecto para este estudiante
+    // إنشاء سجل حضور افتراضي لهذا الطالب
     const attendanceKey = `${studentId}-${currentDate}`
     if (!gradesStore.attendance.value[attendanceKey]) {
       gradesStore.attendance.value[attendanceKey] = {
         student: studentId,
         date: currentDate,
-        status: 'present' // Valor por defecto
+        status: 'present' // القيمة الافتراضية
       }
     }
 
-    // Cargar la asistencia si no está en caché
+    // تحميل الحضور إذا لم يكن موجودًا في التخزين المؤقت
     try {
       if (Object.keys(gradesStore.attendance.value).filter(key => key.startsWith(`${studentId}-`)).length === 0) {
         await gradesStore.fetchAttendanceForDate(currentDate, selectedClass.value, selectedSection.value)
@@ -2266,45 +2272,65 @@ const openStudentDetails = async (student) => {
       console.error(`Error fetching attendance for student ${studentId}:`, error)
     }
 
-    // Obtener todos los registros de asistencia del estudiante mediante API
-    // (Esta información detallada no se almacena en caché)
-    const attendanceResponse = await api.get('attendances/by_student/', {
-      params: {
-        student_id: studentId
-      }
-    })
-    studentAttendance.value = attendanceResponse.data || []
-    console.log('Fetched attendance for student details:', studentAttendance.value)
+    // الحصول على جميع سجلات الحضور للطالب عبر API
+    // (لا يتم تخزين هذه المعلومات المفصلة في ذاكرة التخزين المؤقت)
+    try {
+      const attendanceResponse = await api.get('attendances/by_student/', {
+        params: {
+          student_id: studentId
+        }
+      })
+      studentAttendance.value = attendanceResponse.data || []
+      console.log('Fetched attendance for student details:', studentAttendance.value)
+    } catch (error) {
+      console.error(`Error fetching attendance details for student ${studentId}:`, error)
+      studentAttendance.value = []
+    }
 
-    // Cargar entregas de tareas
-    // Si hay un assignment activo, usar el store
+    // تحميل تسليمات الواجبات
+    // إذا كان هناك واجب نشط، استخدم المتجر
     if (currentAssignment.value) {
       const assignmentId = currentAssignment.value.id
 
-      // Cargar las entregas si no están en caché
+      // تهيئة كائن التسليمات إذا لم يكن موجودًا
+      if (!gradesStore.submissions.value) {
+        gradesStore.submissions.value = {}
+      }
+
+      // تحميل التسليمات إذا لم تكن موجودة في التخزين المؤقت
       if (!gradesStore.submissions.value[`${studentId}-${assignmentId}`]) {
         await gradesStore.fetchSubmissionsForAssignment(assignmentId, [studentId])
       }
     }
 
-    // Obtener todas las entregas del estudiante mediante API
-    // (Esta información detallada no se almacena en caché)
-    const submissionsResponse = await api.get('assignment-submissions/by_student/', {
-      params: {
-        student_id: studentId
-      }
-    })
-    studentAssignments.value = submissionsResponse.data || []
-    console.log('Fetched assignment submissions for student details:', studentAssignments.value)
+    // الحصول على جميع تسليمات الطالب عبر API
+    // (لا يتم تخزين هذه المعلومات المفصلة في ذاكرة التخزين المؤقت)
+    try {
+      const submissionsResponse = await api.get('assignment-submissions/by_student/', {
+        params: {
+          student_id: studentId
+        }
+      })
+      studentAssignments.value = submissionsResponse.data || []
+      console.log('Fetched assignment submissions for student details:', studentAssignments.value)
+    } catch (error) {
+      console.error(`Error fetching assignment submissions for student ${studentId}:`, error)
+      studentAssignments.value = []
+    }
 
-    // Cargar notas (no se almacenan en caché)
-    const notesResponse = await api.get('notes/by_student/', {
-      params: {
-        student_id: studentId
-      }
-    })
-    studentNotes.value = notesResponse.data || []
-    console.log('Fetched notes for student details:', studentNotes.value)
+    // تحميل الملاحظات (لا يتم تخزينها في ذاكرة التخزين المؤقت)
+    try {
+      const notesResponse = await api.get('notes/by_student/', {
+        params: {
+          student_id: studentId
+        }
+      })
+      studentNotes.value = notesResponse.data || []
+      console.log('Fetched notes for student details:', studentNotes.value)
+    } catch (error) {
+      console.error(`Error fetching notes for student ${studentId}:`, error)
+      studentNotes.value = []
+    }
 
     console.timeEnd(timerLabel)
   } catch (error) {
@@ -2312,7 +2338,7 @@ const openStudentDetails = async (student) => {
     if (error.response) {
       console.error('Error response data:', error.response.data)
     }
-    // Mostrar mensaje de error
+    // إظهار رسالة خطأ
     alert('حدث خطأ أثناء تحميل بيانات الطالب')
   }
 }
