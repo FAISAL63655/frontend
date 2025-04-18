@@ -882,13 +882,53 @@ const getStudentImage = (imagePath) => {
     return defaultImage
   }
 
+  // إذا كان المسار يبدأ بـ http أو https
+  if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+    // التحقق من أن المسار يشير إلى صورة موجودة
+    if (imagePath.includes('teachease-backend.onrender.com/media/')) {
+      // استخراج اسم الملف من المسار
+      const parts = imagePath.split('/')
+      const filename = parts[parts.length - 1]
+
+      // استخراج الجزء الأساسي من عنوان API
+      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || '/api/'
+      const baseUrl = apiBaseUrl.endsWith('/api/')
+        ? apiBaseUrl.slice(0, -4) // إزالة '/api'
+        : apiBaseUrl.endsWith('/api')
+          ? apiBaseUrl.slice(0, -3) // إزالة 'api'
+          : apiBaseUrl
+
+      // إنشاء مسار جديد باستخدام المجلد الصحيح
+      const newUrl = `${baseUrl}/media/students/${filename}`
+      console.log(`GradesView: تم تحويل مسار الصورة من ${imagePath} إلى ${newUrl}`)
+      return newUrl
+    }
+
+    // إذا كان المسار كاملاً ولكن ليس من الخادم الخاص بنا
+    return imagePath
+  }
+
+  // إذا كان المسار يبدأ بـ /media
+  if (imagePath.startsWith('/media/')) {
+    // استخدام دالة getFullImageUrl للحصول على المسار الكامل
+    return getFullImageUrl(imagePath)
+  }
+
+  // إذا كان المسار يبدأ بـ students/
+  if (imagePath.startsWith('students/')) {
+    // استخدام دالة getFullImageUrl للحصول على المسار الكامل
+    return getFullImageUrl(imagePath)
+  }
+
   // التحقق من أن المسار لا يحتوي على أحرف غير صالحة
   if (imagePath.includes('undefined') || imagePath.includes('null')) {
     console.log('GradesView: مسار الصورة يحتوي على قيم غير صالحة:', imagePath)
     return defaultImage
   }
 
-  return getFullImageUrl(imagePath)
+  // إذا لم يتطابق المسار مع أي من الحالات السابقة، استخدم الصورة الافتراضية
+  console.log(`GradesView: مسار غير معروف: ${imagePath}، استخدام الصورة الافتراضية`)
+  return defaultImage
 }
 
 // دالة للتعامل مع أخطاء تحميل الصور في الجدول
@@ -1183,7 +1223,20 @@ const fetchStudents = async () => {
 
     // إنشاء قائمة الطلاب مع الدرجات الافتراضية
     const studentsWithGrades = response.data.map(student => {
-      const imageUrl = student.image ? getStudentImage(student.image) : 'https://cdn.vuetifyjs.com/images/john.jpg';
+      // طباعة البيانات الواردة من الخادم للتأكد من صحتها
+      console.log('Raw student data from server:', student)
+
+      // التعامل مع الصورة بشكل صحيح
+      let imageUrl = 'https://cdn.vuetifyjs.com/images/john.jpg';
+      if (student.image) {
+        // استخدام image_url إذا كانت موجودة (من الخادم)
+        if (student.image_url) {
+          imageUrl = student.image_url;
+        } else {
+          // استخدام دالة getStudentImage للحصول على المسار الكامل
+          imageUrl = getStudentImage(student.image);
+        }
+      }
       console.log(`صورة الطالب ${student.name}:`, student.image, ' -> ', imageUrl);
 
       return {
