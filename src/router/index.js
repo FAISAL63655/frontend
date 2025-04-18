@@ -62,6 +62,12 @@ const routes = [
       name: 'classes-subjects',
       component: () => import('../views/ClassesAndSubjectsView.vue'),
       meta: { title: 'إدارة الصفوف والفصول والمواد' }
+    },
+    {
+      path: '/champions',
+      name: 'champions',
+      component: () => import('../views/ChampionsView.vue'),
+      meta: { title: 'الفرسان' }
     }
 ]
 

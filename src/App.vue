@@ -59,6 +59,7 @@ const navItems = [
   { title: 'الطلاب', icon: 'mdi-account-group-outline', to: '/students' },
   { title: 'الجدول الدراسي', icon: 'mdi-calendar-clock-outline', to: '/schedule' },
   { title: 'الدرجات', icon: 'mdi-clipboard-text-outline', to: '/grades' },
+  { title: 'الفرسان', icon: 'mdi-trophy-outline', to: '/champions' },
   { title: 'التقارير', icon: 'mdi-chart-box-outline', to: '/reports' },
   { title: 'الاختيار العشوائي', icon: 'mdi-dice-multiple-outline', to: '/random-picker' },
   { title: 'السبورة البيضاء', icon: 'mdi-drawing-box', to: '/whiteboard' },
