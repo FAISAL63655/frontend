@@ -1630,7 +1630,7 @@ const saveAttendance = async (student, status) => {
 
     try {
       // البحث عن جدول للصف والفصل والمادة
-      const schedulesResponse = await axios.get('schedules/', {
+      const schedulesResponse = await api.get('schedules/', {
         params: {
           class_name: selectedClass.value,
           section: selectedSection.value,
@@ -1654,7 +1654,7 @@ const saveAttendance = async (student, status) => {
     console.log(`Saving attendance for date: ${dateToSave}`)
 
     // البحث عن سجل حضور موجود للطالب والجدول والتاريخ
-    const attendancesResponse = await axios.get('attendances/by_student/', {
+    const attendancesResponse = await api.get('attendances/by_student/', {
       params: {
         student_id: student.id
       }
@@ -1670,7 +1670,7 @@ const saveAttendance = async (student, status) => {
       const subjectName = subjects.value.find(s => s.id === selectedSubject.value)?.name || 'المادة المحددة'
 
       // تحديث سجل الحضور الموجود
-      response = await axios.put(`attendances/${existingAttendance.id}/`, {
+      response = await api.put(`attendances/${existingAttendance.id}/`, {
         student: student.id,
         schedule: scheduleId,
         status,
@@ -1683,7 +1683,7 @@ const saveAttendance = async (student, status) => {
       const subjectName = subjects.value.find(s => s.id === selectedSubject.value)?.name || 'المادة المحددة'
 
       // إنشاء سجل حضور جديد
-      response = await axios.post('attendances/', {
+      response = await api.post('attendances/', {
         student: student.id,
         schedule: scheduleId,
         status,
@@ -1753,7 +1753,7 @@ const saveAssignmentSubmission = async (student, status) => {
     let response
     if (existingSubmission) {
       // تحديث تسليم الواجب الموجود
-      response = await axios.put(`assignment-submissions/${existingSubmission.id}/`, {
+      response = await api.put(`assignment-submissions/${existingSubmission.id}/`, {
         student: student.id,
         assignment: assignmentId,
         status,
@@ -1775,7 +1775,7 @@ const saveAssignmentSubmission = async (student, status) => {
       }
     } else {
       // إنشاء تسليم واجب جديد
-      response = await axios.post('assignment-submissions/', {
+      response = await api.post('assignment-submissions/', {
         student: student.id,
         assignment: assignmentId,
         status,
@@ -1898,7 +1898,7 @@ const deleteCurrentAssignment = async () => {
   if (!confirm(`هل أنت متأكد من حذف واجب "${assignmentTitle}" لمادة ${subjectName}?سيتم حذف جميع تسليمات الطلاب لهذا الواجب.`)) return
 
   try {
-    await axios.delete(`assignments/${currentAssignment.value.id}/`)
+    await api.delete(`assignments/${currentAssignment.value.id}/`)
 
     // إعادة تعيين الواجب الحالي
     const currentAssignmentId = currentAssignment.value.id
@@ -2080,7 +2080,7 @@ const addAssignment = async () => {
 
     try {
       // البحث عن جدول للصف والفصل والمادة
-      const schedulesResponse = await axios.get('schedules/', {
+      const schedulesResponse = await api.get('schedules/', {
         params: {
           class_name: selectedClass.value,
           section: selectedSection.value,
@@ -2118,7 +2118,7 @@ const addAssignment = async () => {
     // إنشاء تسليمات للواجب لجميع الطلاب
     for (const student of students.value) {
       try {
-        await axios.post('assignment-submissions/', {
+        await api.post('assignment-submissions/', {
           student: student.id,
           assignment: response.data.id,
           status: 'not_submitted',
@@ -2164,10 +2164,56 @@ const addAssignment = async () => {
 }
 
 // Open student details
-const openStudentDetails = (student) => {
+const openStudentDetails = async (student) => {
   console.log('Opening details for student:', student)
   selectedStudent.value = student
   showStudentDetailsDialog.value = true
+
+  // Cargar datos del estudiante
+  try {
+    // Cargar calificaciones
+    const gradesResponse = await api.get('grades/by_student/', {
+      params: {
+        student_id: student.id
+      }
+    })
+    console.log('Fetched grades for student details:', gradesResponse.data)
+    studentGrades.value = gradesResponse.data || []
+
+    // Cargar asistencia
+    const attendanceResponse = await api.get('attendances/by_student/', {
+      params: {
+        student_id: student.id
+      }
+    })
+    console.log('Fetched attendance for student details:', attendanceResponse.data)
+    studentAttendance.value = attendanceResponse.data || []
+
+    // Cargar entregas de tareas
+    const submissionsResponse = await api.get('assignment-submissions/by_student/', {
+      params: {
+        student_id: student.id
+      }
+    })
+    console.log('Fetched assignment submissions for student details:', submissionsResponse.data)
+    studentAssignments.value = submissionsResponse.data || []
+
+    // Cargar notas
+    const notesResponse = await api.get('notes/by_student/', {
+      params: {
+        student_id: student.id
+      }
+    })
+    console.log('Fetched notes for student details:', notesResponse.data)
+    studentNotes.value = notesResponse.data || []
+  } catch (error) {
+    console.error('Error loading student details:', error)
+    if (error.response) {
+      console.error('Error response data:', error.response.data)
+    }
+    // Mostrar mensaje de error
+    alert('حدث خطأ أثناء تحميل بيانات الطالب')
+  }
 }
 
 // وظيفة تنسيق التاريخ
@@ -2314,7 +2360,7 @@ const updateNoteRecord = async () => {
 
     try {
       // البحث عن جدول للصف والفصل والمادة
-      const schedulesResponse = await axios.get('schedules/', {
+      const schedulesResponse = await api.get('schedules/', {
         params: {
           class_name: selectedClass.value,
           section: selectedSection.value,
@@ -2344,7 +2390,7 @@ const updateNoteRecord = async () => {
 
     console.log('Sending update request with data:', updateData)
 
-    const response = await axios.put(`notes/${editedNote.value.id}/`, updateData)
+    const response = await api.put(`notes/${editedNote.value.id}/`, updateData)
 
     console.log('Updated note:', response.data)
 
@@ -2435,7 +2481,7 @@ const updateAttendanceRecord = async () => {
 
     console.log('Sending update request with data:', updateData)
 
-    const response = await axios.put(`attendance/${editedAttendance.value.id}/`, updateData)
+    const response = await api.put(`attendance/${editedAttendance.value.id}/`, updateData)
 
     console.log('Updated attendance record:', response.data)
 
@@ -2484,7 +2530,7 @@ const deleteAttendanceRecord = async (record, index) => {
 
   try {
     // حذف سجل الحضور من الخادم الخلفي
-    await axios.delete(`attendance/${record.id}/`)
+    await api.delete(`attendance/${record.id}/`)
 
     // حذف سجل الحضور من الواجهة الأمامية
     studentAttendance.value.splice(index, 1)
@@ -2522,7 +2568,7 @@ const deleteNoteRecord = async (note, index) => {
   try {
     // حذف الملاحظة من الخادم الخلفي
     console.log(`Deleting note with ID: ${note.id}`)
-    await axios.delete(`notes/${note.id}/`)
+    await api.delete(`notes/${note.id}/`)
 
     // حذف الملاحظة من الواجهة الأمامية
     studentNotes.value.splice(index, 1)
