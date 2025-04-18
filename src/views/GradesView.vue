@@ -852,11 +852,18 @@ import NotificationHelper from '@/services/NotificationHelper'
 // دالة مساعدة للتأكد من وجود صورة أو استخدام صورة افتراضية
 const getStudentImage = (imagePath) => {
   // الصورة الافتراضية للطالب
+  // استخدام صورة افتراضية من موقع موثوق
   const defaultImage = 'https://cdn.vuetifyjs.com/images/john.jpg'
 
   // إذا لم يكن هناك مسار، استخدم الصورة الافتراضية
   if (!imagePath) {
     console.log('GradesView: لا يوجد مسار للصورة، استخدام الصورة الافتراضية')
+    return defaultImage
+  }
+
+  // التحقق من أن المسار لا يحتوي على أحرف غير صالحة
+  if (imagePath.includes('undefined') || imagePath.includes('null')) {
+    console.log('GradesView: مسار الصورة يحتوي على قيم غير صالحة:', imagePath)
     return defaultImage
   }
 

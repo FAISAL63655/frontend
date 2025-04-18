@@ -198,7 +198,12 @@
 
             <div class="student-avatar-container">
               <v-avatar size="80" class="student-avatar">
-                <v-img :src="student.image" :alt="student.name" cover></v-img>
+                <v-img
+                  :src="student.image"
+                  :alt="student.name"
+                  cover
+                  @error="student.image = 'https://cdn.vuetifyjs.com/images/john.jpg'"
+                ></v-img>
               </v-avatar>
             </div>
 
@@ -257,7 +262,12 @@
         <!-- Image Column -->
         <template v-slot:item.image="{ item }">
           <v-avatar size="42" class="elevation-1">
-            <v-img :src="getTableItemImage(item)" :alt="getTableItemName(item)" cover></v-img>
+            <v-img
+              :src="getTableItemImage(item)"
+              :alt="getTableItemName(item)"
+              cover
+              @error="handleImageError(item)"
+            ></v-img>
           </v-avatar>
         </template>
 
@@ -342,7 +352,13 @@
             <v-row justify="center">
               <v-col cols="12" class="text-center">
                 <v-avatar size="120" color="primary" class="mb-4 elevation-2">
-                  <v-img v-if="studentForm.image" :src="studentForm.image" :alt="studentForm.name || 'صورة الطالب'" cover></v-img>
+                  <v-img
+                    v-if="studentForm.image"
+                    :src="studentForm.image"
+                    :alt="studentForm.name || 'صورة الطالب'"
+                    cover
+                    @error="studentForm.image = 'https://cdn.vuetifyjs.com/images/john.jpg'"
+                  ></v-img>
                   <span v-else class="text-h3 text-white">{{ studentForm.name ? studentForm.name.charAt(0) : 'ط' }}</span>
                 </v-avatar>
 
@@ -465,6 +481,7 @@
               :src="studentToDelete?.image || 'https://cdn.vuetifyjs.com/images/john.jpg'"
               :alt="studentToDelete?.name || 'صورة الطالب'"
               cover
+              @error="handleDeleteDialogImageError"
             ></v-img>
           </v-avatar>
           <h3 class="text-h6 mb-3">{{ studentToDelete?.name }}</h3>
@@ -546,11 +563,18 @@ const filteredStudents = computed(() => {
 // دالة مساعدة للتأكد من وجود صورة أو استخدام صورة افتراضية
 const getStudentImage = (imagePath) => {
   // الصورة الافتراضية للطالب
+  // استخدام صورة افتراضية من موقع موثوق
   const defaultImage = 'https://cdn.vuetifyjs.com/images/john.jpg'
 
   // إذا لم يكن هناك مسار، استخدم الصورة الافتراضية
   if (!imagePath) {
     console.log('StudentsView: لا يوجد مسار للصورة، استخدام الصورة الافتراضية')
+    return defaultImage
+  }
+
+  // التحقق من أن المسار لا يحتوي على أحرف غير صالحة
+  if (imagePath.includes('undefined') || imagePath.includes('null')) {
+    console.log('StudentsView: مسار الصورة يحتوي على قيم غير صالحة:', imagePath)
     return defaultImage
   }
 
@@ -699,6 +723,31 @@ const resetImageToDefault = () => {
     studentForm.value.image = 'https://cdn.vuetifyjs.com/images/john.jpg'
   }
 }
+
+// دالة للتعامل مع أخطاء تحميل الصور في الجدول
+const handleImageError = (item) => {
+  console.error('StudentsView: خطأ في تحميل صورة الطالب:', item)
+
+  // الحصول على الطالب من القائمة
+  const student = item.raw || item
+  if (student) {
+    // تعيين الصورة الافتراضية
+    student.image = 'https://cdn.vuetifyjs.com/images/john.jpg'
+  }
+}
+
+// دالة للتعامل مع أخطاء تحميل الصور في حوار الحذف
+const handleDeleteDialogImageError = () => {
+  console.error('StudentsView: خطأ في تحميل صورة الطالب في حوار الحذف')
+
+  // التحقق من وجود الطالب المراد حذفه
+  if (studentToDelete.value) {
+    // تعيين الصورة الافتراضية
+    studentToDelete.value.image = 'https://cdn.vuetifyjs.com/images/john.jpg'
+  }
+}
+
+// الدوال المساعدة للجدول معرفة في نهاية الملف
 
 // الحصول على مخزن التخزين المؤقت
 const cacheStore = useSimpleCacheStore()
@@ -1233,15 +1282,33 @@ watch(studentForm, (newValue) => {
 const getTableItemImage = (item) => {
   // v-data-table في Vuetify 3 يمكن أن تكون بنية العنصر مختلفة
   let imagePath = null;
+  let student = null;
+
   if (typeof item === 'object') {
     if (item.raw) {
+      student = item.raw;
       imagePath = item.raw.image;
     } else if (item.columns && item.columns.image) {
       imagePath = item.columns.image.value;
     } else if (item.image) {
+      student = item;
       imagePath = item.image;
     }
   }
+
+  // التحقق من وجود مسار صورة صالح
+  if (!imagePath || imagePath.includes('undefined') || imagePath.includes('null')) {
+    // إذا لم يكن هناك مسار صورة صالح، استخدم الصورة الافتراضية
+    const defaultImage = 'https://cdn.vuetifyjs.com/images/john.jpg';
+
+    // تحديث الصورة في الكائن الأصلي إذا كان موجودًا
+    if (student) {
+      student.image = defaultImage;
+    }
+
+    return defaultImage;
+  }
+
   return getStudentImage(imagePath);
 }
 
