@@ -546,6 +546,18 @@ const filteredStudents = computed(() => {
 // دالة مساعدة للتأكد من وجود صورة أو استخدام صورة افتراضية
 const getStudentImage = (imagePath) => {
   if (!imagePath) return 'https://cdn.vuetifyjs.com/images/john.jpg'
+
+  // إذا كان المسار يبدأ بـ http أو https
+  if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+    // التحقق من أن المسار يشير إلى صورة موجودة
+    if (imagePath.includes('teachease-backend.onrender.com/media/')) {
+      console.log('تم اكتشاف مسار صورة قديم:', imagePath)
+      // استخدام الصورة الافتراضية بدلاً من المسار القديم
+      return 'https://cdn.vuetifyjs.com/images/john.jpg'
+    }
+  }
+
+  // استخدام دالة getFullImageUrl للحصول على المسار الكامل
   return getFullImageUrl(imagePath)
 }
 

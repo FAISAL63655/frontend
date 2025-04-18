@@ -125,6 +125,24 @@ export const getFullImageUrl = (imagePath) => {
 
   // إذا كان المسار يبدأ بـ http أو https، فهو مسار كامل بالفعل
   if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+    // التحقق من أن المسار يشير إلى صورة موجودة
+    // إذا كان المسار يحتوي على اسم الخادم الحالي، فقد يكون مسارًا قديمًا
+    if (imagePath.includes('teachease-backend.onrender.com/media/')) {
+      // استخراج الجزء الأخير من المسار (اسم الملف فقط)
+      const parts = imagePath.split('/');
+      const filename = parts[parts.length - 1];
+
+      // استخراج الجزء الأساسي من عنوان API
+      const baseUrl = apiBaseUrl.endsWith('/api/')
+        ? apiBaseUrl.slice(0, -4) // إزالة '/api'
+        : apiBaseUrl.endsWith('/api')
+          ? apiBaseUrl.slice(0, -3) // إزالة 'api'
+          : apiBaseUrl;
+
+      // إنشاء مسار جديد باستخدام المجلد الصحيح
+      return `${baseUrl}/media/students/${filename}`;
+    }
+
     return imagePath;
   }
 
