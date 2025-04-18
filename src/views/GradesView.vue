@@ -265,6 +265,8 @@
         class="elevation-0 student-data-table"
         item-value="id"
         hover
+        :loading="loading"
+        loading-text="جاري تحميل بيانات الطلاب..."
       >
         <!-- Image Column -->
         <template #[`item.image`]="{ item }">
@@ -1219,19 +1221,25 @@ onMounted(async () => {
 // Inicializar el store de calificaciones
 const gradesStore = useGradesStore()
 
+// مؤشرات التحميل
+const loading = ref(false)
+
 // Fetch students based on selected class and section
 const fetchStudents = async () => {
   if (!selectedClass.value || !selectedSection.value || !selectedSubject.value) return
 
   try {
+    // تفعيل مؤشر التحميل
+    loading.value = true
+    
     const studentsTimerLabel = `fetchStudents-${Date.now()}`
     console.time(studentsTimerLabel)
 
-    // Usar el store para obtener los estudiantes
+    // استخدام التخزين المؤقت للطلاب
     const studentsData = await gradesStore.fetchStudentsByClassAndSection(selectedClass.value, selectedSection.value)
     console.log('Fetched students from store:', studentsData)
 
-    // إنشاء قائمة الطلاب مع الدرجات الافتراضية
+    // إعداد قائمة الطلاب مع القيم الافتراضية
     const studentsWithGrades = studentsData.map(student => {
       // طباعة البيانات الواردة من الخادم للتأكد من صحتها
       console.log('Raw student data from server:', student)
@@ -1252,10 +1260,10 @@ const fetchStudents = async () => {
       return {
         id: student.id,
         name: student.name,
-        class_id: student.class_name,  // في الخادم الخلفي، الحقل هو class_name وليس class_id
-        section_id: student.section,   // في الخادم الخلفي، الحقل هو section وليس section_id
-        class_name: student.class_name_display || '',  // من StudentDetailSerializer
-        section: student.section_display || '',        // من StudentDetailSerializer
+        class_id: student.class_name,
+        section_id: student.section,
+        class_name: student.class_name_display || '',
+        section: student.section_display || '',
         image: imageUrl,
         theory: null,
         practical: null,
@@ -1270,20 +1278,18 @@ const fetchStudents = async () => {
       }
     })
 
-    // الحصول على المادة المحددة
+    // تحديد معلومات المادة المحددة
     const selectedSubjectObj = subjects.value.find(s => s.id === selectedSubject.value)
     console.log('Selected subject:', selectedSubjectObj)
-
-    // تحديد ما إذا كانت المادة المحددة هي مادة فرعية
     const isSubSubject = selectedSubjectObj && selectedSubjectObj.parent_subject
     console.log('Is sub subject:', isSubSubject)
 
-    // Obtener todos los IDs de estudiantes
+    // جلب جميع الدرجات في طلب واحد
     const studentIds = studentsWithGrades.map(student => student.id)
-
-    // Obtener todas las calificaciones en una sola solicitud
     const gradesTimerLabel = `fetchGrades-${Date.now()}`
     console.time(gradesTimerLabel)
+    
+    // جلب الدرجات عبر المخزن بطريقة محسنة
     await gradesStore.fetchGradesForStudents(studentIds)
     console.timeEnd(gradesTimerLabel)
 
@@ -1406,7 +1412,7 @@ const fetchStudents = async () => {
             // Obtener las entregas del store
             const assignmentId = currentAssignment.value.id
 
-            // Si no están en caché, cargar las entregas para toda la clase
+            // Si no están en caché, cargar las entregas para toda الصف
             if (Object.keys(gradesStore.submissions.value).filter(key => key.includes(`-${assignmentId}`)).length === 0) {
               await gradesStore.fetchSubmissionsForAssignment(assignmentId, studentIds)
             }
@@ -1455,12 +1461,10 @@ const fetchStudents = async () => {
 
     console.timeEnd(studentsTimerLabel)
   } catch (error) {
-    console.error('Error fetching students:', error)
-    if (error.response) {
-      console.error('Error response data:', error.response.data)
-    }
-    // For demo purposes, add some dummy data if API fails
-    addDummyData()
+    console.error('Error fetching students or grades:', error)
+  } finally {
+    // إيقاف مؤشر التحميل بعد انتهاء العملية
+    loading.value = false
   }
 }
 
