@@ -1282,7 +1282,7 @@ const fetchStudents = async () => {
     for (const student of studentsWithGrades) {
       try {
         // Obtener las calificaciones del estudiante del store
-        const studentGrades = gradesStore.getGradesByStudent.value(student.id) || []
+        const studentGrades = gradesStore.getGradesByStudent(student.id) || []
 
         // Filtrar las calificaciones para la materia seleccionada
         const subjectGrades = studentGrades.filter(grade => grade.subject === selectedSubject.value)
@@ -1355,7 +1355,7 @@ const fetchStudents = async () => {
           }
 
           // Obtener la asistencia del estudiante para la fecha seleccionada
-          const dateAttendance = gradesStore.getAttendanceByStudentAndDate.value(student.id, dateToCheck)
+          const dateAttendance = gradesStore.getAttendanceByStudentAndDate(student.id, dateToCheck)
 
           if (dateAttendance) {
             // تعيين حالة الحضور
@@ -1382,7 +1382,7 @@ const fetchStudents = async () => {
             }
 
             // Obtener la entrega del estudiante para la tarea actual
-            const existingSubmission = gradesStore.getSubmissionsByStudentAndAssignment.value(student.id, assignmentId)
+            const existingSubmission = gradesStore.getSubmissionsByStudentAndAssignment(student.id, assignmentId)
 
             if (existingSubmission) {
               // تعيين حالة تسليم الواجب
@@ -2198,7 +2198,7 @@ const openStudentDetails = async (student) => {
     }
 
     // Obtener las calificaciones del estudiante
-    studentGrades.value = gradesStore.getGradesByStudent.value(studentId) || []
+    studentGrades.value = gradesStore.getGradesByStudent(studentId) || []
     console.log('Fetched grades for student details:', studentGrades.value)
 
     // Cargar asistencia (usar datos existentes si están disponibles)
