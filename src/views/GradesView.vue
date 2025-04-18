@@ -269,7 +269,18 @@
         <!-- Image Column -->
         <template #[`item.image`]="{ item }">
           <v-avatar size="40" class="elevation-1" style="border: 2px solid #f5f5f5;">
-            <v-img :src="item.image" alt="Student" cover></v-img>
+            <v-img
+              :src="item.image"
+              alt="Student"
+              cover
+              @error="handleImageError(item)"
+            >
+              <template v-slot:placeholder>
+                <v-avatar size="40" color="primary">
+                  <span class="text-h6 text-white">{{ item.name ? item.name.charAt(0) : 'ط' }}</span>
+                </v-avatar>
+              </template>
+            </v-img>
           </v-avatar>
         </template>
 
@@ -537,7 +548,18 @@
         <v-card-title class="d-flex flex-column align-start">
           <div class="d-flex align-center gap-2 mb-2">
             <v-avatar size="60" class="elevation-2">
-              <v-img :src="selectedStudent?.image" cover alt="صورة الطالب"></v-img>
+              <v-img
+                :src="selectedStudent?.image"
+                cover
+                alt="صورة الطالب"
+                @error="handleStudentDetailsImageError"
+              >
+                <template v-slot:placeholder>
+                  <v-avatar size="60" color="primary">
+                    <span class="text-h5 text-white">{{ selectedStudent?.name ? selectedStudent.name.charAt(0) : 'ط' }}</span>
+                  </v-avatar>
+                </template>
+              </v-img>
             </v-avatar>
             <div>
               <h3 class="text-h5 font-weight-bold mb-1">{{ selectedStudent?.name }}</h3>
@@ -851,8 +873,63 @@ import NotificationHelper from '@/services/NotificationHelper'
 
 // دالة مساعدة للتأكد من وجود صورة أو استخدام صورة افتراضية
 const getStudentImage = (imagePath) => {
-  if (!imagePath) return 'https://cdn.vuetifyjs.com/images/john.jpg'
+  // الصورة الافتراضية للطالب
+  const defaultImage = 'https://cdn.vuetifyjs.com/images/john.jpg'
+
+  // إذا لم يكن هناك مسار، استخدم الصورة الافتراضية
+  if (!imagePath) {
+    console.log('GradesView: لا يوجد مسار للصورة، استخدام الصورة الافتراضية')
+    return defaultImage
+  }
+
+  // التحقق من أن المسار لا يحتوي على أحرف غير صالحة
+  if (imagePath.includes('undefined') || imagePath.includes('null')) {
+    console.log('GradesView: مسار الصورة يحتوي على قيم غير صالحة:', imagePath)
+    return defaultImage
+  }
+
   return getFullImageUrl(imagePath)
+}
+
+// دالة للتعامل مع أخطاء تحميل الصور في الجدول
+const handleImageError = (item) => {
+  console.error('GradesView: خطأ في تحميل صورة الطالب')
+
+  // الصورة الافتراضية
+  const defaultImage = 'https://cdn.vuetifyjs.com/images/john.jpg'
+
+  try {
+    // التحقق من وجود العنصر
+    if (!item) {
+      console.log('handleImageError: العنصر غير موجود');
+      return;
+    }
+
+    // تعيين الصورة الافتراضية
+    item.image = defaultImage;
+    console.log('handleImageError: تم تعيين الصورة الافتراضية للطالب:', item.name || 'unknown');
+  } catch (error) {
+    console.error('handleImageError: خطأ في معالجة خطأ الصورة:', error);
+  }
+}
+
+// دالة للتعامل مع أخطاء تحميل صورة الطالب في حوار التفاصيل
+const handleStudentDetailsImageError = () => {
+  console.error('GradesView: خطأ في تحميل صورة الطالب في حوار التفاصيل')
+
+  // الصورة الافتراضية
+  const defaultImage = 'https://cdn.vuetifyjs.com/images/john.jpg'
+
+  try {
+    // التحقق من وجود الطالب المحدد
+    if (selectedStudent.value) {
+      // تعيين الصورة الافتراضية
+      selectedStudent.value.image = defaultImage
+      console.log('handleStudentDetailsImageError: تم تعيين الصورة الافتراضية للطالب:', selectedStudent.value.name || 'unknown');
+    }
+  } catch (error) {
+    console.error('handleStudentDetailsImageError: خطأ في معالجة خطأ الصورة:', error);
+  }
 }
 
 // متغيرات جديدة للتصميم
