@@ -880,6 +880,7 @@ import api, { getFullImageUrl } from '@/services/apiConfig'
 import EncouragementDialog from '@/components/EncouragementDialog.vue'
 import NotificationHelper from '@/services/NotificationHelper'
 import { getInitials, getAvatarColor } from '@/utils/imageUtils'
+import { useGradesStore } from '@/stores/gradesStore'
 
 // دالة مساعدة للتأكد من وجود صورة أو استخدام الحرف الأول من الاسم
 const getStudentImage = (imagePath, studentName = '') => {
@@ -1208,35 +1209,34 @@ onMounted(async () => {
   }
 })
 
+// Inicializar el store de calificaciones
+const gradesStore = useGradesStore()
+
 // Fetch students based on selected class and section
 const fetchStudents = async () => {
   if (!selectedClass.value || !selectedSection.value || !selectedSubject.value) return
 
   try {
-    // جلب الطلاب حسب الصف والفصل
-    const response = await api.get('students/by_class_section/', {
-      params: {
-        class_id: selectedClass.value,
-        section_id: selectedSection.value
-      }
-    })
+    console.time('fetchStudents')
 
-    console.log('Fetched students:', response.data)
+    // Usar el store para obtener los estudiantes
+    const studentsData = await gradesStore.fetchStudentsByClassAndSection(selectedClass.value, selectedSection.value)
+    console.log('Fetched students from store:', studentsData)
 
     // إنشاء قائمة الطلاب مع الدرجات الافتراضية
-    const studentsWithGrades = response.data.map(student => {
+    const studentsWithGrades = studentsData.map(student => {
       // طباعة البيانات الواردة من الخادم للتأكد من صحتها
       console.log('Raw student data from server:', student)
 
       // التعامل مع الصورة بشكل صحيح
-      let imageUrl = 'https://cdn.vuetifyjs.com/images/john.jpg';
+      let imageUrl = null; // استخدام null لعرض الحرف الأول من الاسم
       if (student.image) {
         // استخدام image_url إذا كانت موجودة (من الخادم)
         if (student.image_url) {
           imageUrl = student.image_url;
         } else {
           // استخدام دالة getStudentImage للحصول على المسار الكامل
-          imageUrl = getStudentImage(student.image);
+          imageUrl = getStudentImage(student.image, student.name);
         }
       }
       console.log(`صورة الطالب ${student.name}:`, student.image, ' -> ', imageUrl);
@@ -1270,94 +1270,93 @@ const fetchStudents = async () => {
     const isSubSubject = selectedSubjectObj && selectedSubjectObj.parent_subject
     console.log('Is sub subject:', isSubSubject)
 
-    // جلب الدرجات لكل طالب للمادة المحددة
+    // Obtener todos los IDs de estudiantes
+    const studentIds = studentsWithGrades.map(student => student.id)
+
+    // Obtener todas las calificaciones en una sola solicitud
+    console.time('fetchGrades')
+    const allGrades = await gradesStore.fetchGradesForStudents(studentIds)
+    console.timeEnd('fetchGrades')
+
+    // Procesar las calificaciones para cada estudiante
     for (const student of studentsWithGrades) {
-      try {
-        // جلب درجات المادة المحددة
-        const gradesResponse = await api.get('grades/by_student/', {
-          params: {
-            student_id: student.id,
-            subject_id: selectedSubject.value
+      // Obtener las calificaciones del estudiante del store
+      const studentGrades = gradesStore.getGradesByStudent.value(student.id) || []
+
+      // Filtrar las calificaciones para la materia seleccionada
+      const subjectGrades = studentGrades.filter(grade => grade.subject === selectedSubject.value)
+      console.log(`Grades for student ${student.id} in subject ${selectedSubject.value}:`, subjectGrades)
+
+      // Asignar las calificaciones al estudiante
+      if (subjectGrades.length > 0) {
+        for (const grade of subjectGrades) {
+          if (grade.type === 'theory') {
+            student.theory = grade.score
+          } else if (grade.type === 'practical') {
+            // التحقق من قيمة max_score للتمييز بين الشفوي والواجبات
+            if (grade.max_score === 10) {
+              // هذه درجة واجبات
+              student.homework = grade.score
+            } else {
+              // هذه درجة شفوي
+              student.practical = grade.score
+            }
+          } else if (grade.type === 'participation') {
+            student.participation = grade.score
+          } else if (grade.type === 'quran') {
+            student.quran = grade.score
+          } else if (grade.type === 'final') {
+            student.final = grade.score
           }
-        })
+        }
+      }
 
-        console.log(`Fetched grades for student ${student.id}:`, gradesResponse.data)
+      // Si es una materia secundaria, obtener calificaciones de la materia principal
+      if (isSubSubject && selectedSubjectObj.parent_subject) {
+        const parentSubjectGrades = studentGrades.filter(grade => grade.subject === selectedSubjectObj.parent_subject)
+        console.log(`Parent subject grades for student ${student.id}:`, parentSubjectGrades)
 
-        // تعيين الدرجات للطالب بناءً على البيانات المستلمة
-        if (gradesResponse.data && gradesResponse.data.length > 0) {
-          for (const grade of gradesResponse.data) {
-            if (grade.type === 'theory') {
+        if (parentSubjectGrades.length > 0) {
+          for (const grade of parentSubjectGrades) {
+            if (grade.type === 'theory' && student.theory === null) {
               student.theory = grade.score
             } else if (grade.type === 'practical') {
               // التحقق من قيمة max_score للتمييز بين الشفوي والواجبات
-              if (grade.max_score === 10) {
+              if (grade.max_score === 10 && student.homework === null) {
                 // هذه درجة واجبات
                 student.homework = grade.score
-              } else {
+              } else if (grade.max_score !== 10 && student.practical === null) {
                 // هذه درجة شفوي
                 student.practical = grade.score
               }
-            } else if (grade.type === 'participation') {
+            } else if (grade.type === 'participation' && student.participation === null) {
               student.participation = grade.score
-            } else if (grade.type === 'quran') {
+            } else if (grade.type === 'quran' && student.quran === null) {
               student.quran = grade.score
-            } else if (grade.type === 'final') {
+            } else if (grade.type === 'final' && student.final === null) {
               student.final = grade.score
             }
           }
         }
-
-        // إذا كانت المادة المحددة هي مادة فرعية، نجلب الدرجات من المادة الرئيسية
-        if (isSubSubject && selectedSubjectObj.parent_subject) {
-          // جلب درجات المادة الرئيسية
-          const parentGradesResponse = await api.get('grades/by_student/', {
-            params: {
-              student_id: student.id,
-              subject_id: selectedSubjectObj.parent_subject
-            }
-          })
-
-          console.log(`Fetched parent subject grades for student ${student.id}:`, parentGradesResponse.data)
-
-          // تعيين الدرجات من المادة الرئيسية إذا لم تكن موجودة في المادة الفرعية
-          if (parentGradesResponse.data && parentGradesResponse.data.length > 0) {
-            for (const grade of parentGradesResponse.data) {
-              if (grade.type === 'theory' && student.theory === null) {
-                student.theory = grade.score
-              } else if (grade.type === 'practical') {
-                // التحقق من قيمة max_score للتمييز بين الشفوي والواجبات
-                if (grade.max_score === 10 && student.homework === null) {
-                  // هذه درجة واجبات
-                  student.homework = grade.score
-                } else if (grade.max_score !== 10 && student.practical === null) {
-                  // هذه درجة شفوي
-                  student.practical = grade.score
-                }
-              } else if (grade.type === 'participation' && student.participation === null) {
-                student.participation = grade.score
-              } else if (grade.type === 'quran' && student.quran === null) {
-                student.quran = grade.score
-              } else if (grade.type === 'final' && student.final === null) {
-                student.final = grade.score
-              }
-            }
-          }
-        }
+      }
 
         // جلب حالة الحضور للطالب
         try {
           // استخدام التاريخ المحدد أو التاريخ الحالي إذا لم يتم تحديد تاريخ
           const dateToCheck = selectedDate.value || new Date().toISOString().split('T')[0]
 
-          // جلب سجلات الحضور للطالب
-          const attendanceResponse = await api.get('attendances/by_student/', {
-            params: {
-              student_id: student.id
+          // Obtener la asistencia del store
+          if (!gradesStore.attendance.value[`${student.id}-${dateToCheck}`]) {
+            // Si no está en caché, cargar la asistencia para toda la clase
+            if (Object.keys(gradesStore.attendance.value).length === 0) {
+              console.time('fetchAttendance')
+              await gradesStore.fetchAttendanceForDate(dateToCheck, selectedClass.value, selectedSection.value)
+              console.timeEnd('fetchAttendance')
             }
-          })
+          }
 
-          // البحث عن سجل حضور للتاريخ المحدد
-          const dateAttendance = attendanceResponse.data.find(a => a.date === dateToCheck)
+          // Obtener la asistencia del estudiante para la fecha seleccionada
+          const dateAttendance = gradesStore.getAttendanceByStudentAndDate.value(student.id, dateToCheck)
 
           if (dateAttendance) {
             // تعيين حالة الحضور
@@ -1375,14 +1374,18 @@ const fetchStudents = async () => {
         // جلب تسليمات الواجبات للطالب
         if (currentAssignment.value) {
           try {
-            // البحث عن تسليم واجب موجود للطالب والواجب
-            const submissionsResponse = await api.get('assignment-submissions/by_student/', {
-              params: {
-                student_id: student.id
-              }
-            })
+            // Obtener las entregas del store
+            const assignmentId = currentAssignment.value.id
 
-            const existingSubmission = submissionsResponse.data.find(s => s.assignment === currentAssignment.value.id)
+            // Si no están en caché, cargar las entregas para toda la clase
+            if (Object.keys(gradesStore.submissions.value).filter(key => key.includes(`-${assignmentId}`)).length === 0) {
+              console.time('fetchSubmissions')
+              await gradesStore.fetchSubmissionsForAssignment(assignmentId, studentIds)
+              console.timeEnd('fetchSubmissions')
+            }
+
+            // Obtener la entrega del estudiante para la tarea actual
+            const existingSubmission = gradesStore.getSubmissionsByStudentAndAssignment.value(student.id, assignmentId)
 
             if (existingSubmission) {
               // تعيين حالة تسليم الواجب
@@ -2186,41 +2189,70 @@ const openStudentDetails = async (student) => {
 
   // Cargar datos del estudiante
   try {
-    // Cargar calificaciones
-    const gradesResponse = await api.get('grades/by_student/', {
-      params: {
-        student_id: student.id
-      }
-    })
-    console.log('Fetched grades for student details:', gradesResponse.data)
-    studentGrades.value = gradesResponse.data || []
+    console.time('loadStudentDetails')
 
-    // Cargar asistencia
+    // Cargar calificaciones desde el store
+    const studentId = student.id
+
+    // Si no están en caché, cargar las calificaciones
+    if (!gradesStore.grades.value[studentId]) {
+      await gradesStore.fetchGradesForStudents([studentId])
+    }
+
+    // Obtener las calificaciones del estudiante
+    studentGrades.value = gradesStore.getGradesByStudent.value(studentId) || []
+    console.log('Fetched grades for student details:', studentGrades.value)
+
+    // Cargar asistencia (usar datos existentes si están disponibles)
+    // Obtener la fecha actual para filtrar la asistencia
+    const currentDate = new Date().toISOString().split('T')[0]
+
+    // Cargar la asistencia si no está en caché
+    if (Object.keys(gradesStore.attendance.value).filter(key => key.startsWith(`${studentId}-`)).length === 0) {
+      await gradesStore.fetchAttendanceForDate(currentDate, selectedClass.value, selectedSection.value)
+    }
+
+    // Obtener todos los registros de asistencia del estudiante mediante API
+    // (Esta información detallada no se almacena en caché)
     const attendanceResponse = await api.get('attendances/by_student/', {
       params: {
-        student_id: student.id
+        student_id: studentId
       }
     })
-    console.log('Fetched attendance for student details:', attendanceResponse.data)
     studentAttendance.value = attendanceResponse.data || []
+    console.log('Fetched attendance for student details:', studentAttendance.value)
 
     // Cargar entregas de tareas
+    // Si hay un assignment activo, usar el store
+    if (currentAssignment.value) {
+      const assignmentId = currentAssignment.value.id
+
+      // Cargar las entregas si no están en caché
+      if (!gradesStore.submissions.value[`${studentId}-${assignmentId}`]) {
+        await gradesStore.fetchSubmissionsForAssignment(assignmentId, [studentId])
+      }
+    }
+
+    // Obtener todas las entregas del estudiante mediante API
+    // (Esta información detallada no se almacena en caché)
     const submissionsResponse = await api.get('assignment-submissions/by_student/', {
       params: {
-        student_id: student.id
+        student_id: studentId
       }
     })
-    console.log('Fetched assignment submissions for student details:', submissionsResponse.data)
     studentAssignments.value = submissionsResponse.data || []
+    console.log('Fetched assignment submissions for student details:', studentAssignments.value)
 
-    // Cargar notas
+    // Cargar notas (no se almacenan en caché)
     const notesResponse = await api.get('notes/by_student/', {
       params: {
-        student_id: student.id
+        student_id: studentId
       }
     })
-    console.log('Fetched notes for student details:', notesResponse.data)
     studentNotes.value = notesResponse.data || []
+    console.log('Fetched notes for student details:', studentNotes.value)
+
+    console.timeEnd('loadStudentDetails')
   } catch (error) {
     console.error('Error loading student details:', error)
     if (error.response) {
@@ -2305,17 +2337,16 @@ const fetchCurrentAssignment = async () => {
   if (!selectedSubject.value) return
 
   try {
-    const response = await api.get('assignments/', {
-      params: {
-        subject: selectedSubject.value,
-        ordering: '-due_date'
-      }
-    })
+    console.time('fetchAssignments')
 
-    console.log('Fetched assignments for subject:', selectedSubject.value, response.data)
+    // Usar el store para obtener las asignaciones
+    const assignmentsData = await gradesStore.fetchAssignmentsBySubject(selectedSubject.value)
+    console.timeEnd('fetchAssignments')
+
+    console.log('Fetched assignments for subject:', selectedSubject.value, assignmentsData)
 
     // تحديث قائمة الواجبات
-    assignments.value = response.data || []
+    assignments.value = assignmentsData || []
 
     // التحقق من وجود واجبات
     if (assignments.value.length > 0) {
