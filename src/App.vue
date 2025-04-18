@@ -2,6 +2,7 @@
 import { ref, onMounted, computed, watch } from 'vue'
 import { RouterView, useRoute } from 'vue-router'
 import NotificationCenter from '@/components/NotificationCenter.vue'
+import LoadingBar from '@/components/LoadingBar.vue'
 import { useTheme } from 'vuetify'
 
 // Route information
@@ -83,6 +84,8 @@ onMounted(() => {
 
 <template>
   <v-app :theme="theme.global.name.value">
+    <!-- شريط التحميل -->
+    <LoadingBar />
     <v-layout>
       <!-- App Bar -->
       <v-app-bar color="primary" elevation="2" class="app-header">
@@ -192,7 +195,11 @@ onMounted(() => {
       <!-- Main Content -->
       <v-main class="main-content">
         <v-container fluid class="px-4 py-4">
-          <RouterView />
+          <RouterView v-slot="{ Component }">
+            <transition name="fade" mode="out-in">
+              <component :is="Component" />
+            </transition>
+          </RouterView>
         </v-container>
       </v-main>
 
@@ -358,5 +365,31 @@ html {
 
 .drawer-trigger {
   margin-right: 8px;
+}
+/* انتقالات سلسة بين الصفحات */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.2s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
+/* انتقال التمرير للأعلى */
+.slide-up-enter-active,
+.slide-up-leave-active {
+  transition: transform 0.3s ease, opacity 0.3s ease;
+}
+
+.slide-up-enter-from {
+  transform: translateY(20px);
+  opacity: 0;
+}
+
+.slide-up-leave-to {
+  transform: translateY(-20px);
+  opacity: 0;
 }
 </style>

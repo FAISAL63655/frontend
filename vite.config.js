@@ -14,10 +14,36 @@ export default defineConfig({
     },
   },
   build: {
-    // Generate source maps for better debugging
+    // تعطيل خرائط المصدر في الإنتاج لتحسين الأداء
     sourcemap: false,
-    // Optimize chunks for better performance
-    chunkSizeWarningLimit: 1000
+    // تحسين حجم الأجزاء
+    chunkSizeWarningLimit: 1000,
+    // تقسيم الشيفرة CSS لتحسين التحميل
+    cssCodeSplit: true,
+    // تحسين الأصول الثابتة
+    assetsInlineLimit: 4096,
+    // تكوين البناء لتحسين الأداء
+    rollupOptions: {
+      output: {
+        // تقسيم المكتبات الكبيرة إلى أجزاء منفصلة
+        manualChunks: {
+          'vendor': ['vue', 'vue-router', 'pinia'],
+          'ui': ['vuetify']
+        },
+        // تحسين أسماء الملفات للتخزين المؤقت الأفضل
+        chunkFileNames: 'assets/js/[name]-[hash].js',
+        entryFileNames: 'assets/js/[name]-[hash].js',
+        assetFileNames: 'assets/[ext]/[name]-[hash].[ext]'
+      }
+    },
+    // تقليل حجم البناء
+    minify: 'terser',
+    terserOptions: {
+      compress: {
+        drop_console: true,
+        drop_debugger: true
+      }
+    }
   },
   // Configure server options
   server: {
