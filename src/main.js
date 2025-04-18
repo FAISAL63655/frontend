@@ -13,26 +13,10 @@ import * as directives from 'vuetify/directives'
 
 import App from './App.vue'
 import router from './router'
-import api from './services/apiConfig'
-import { useCacheStore } from './stores/cache'
-import { useDataStore } from './stores/data'
+import axios from 'axios'
 
-// تكوين التطبيق
-const app = createApp(App)
-const pinia = createPinia()
-
-// إضافة Pinia للتطبيق
-app.use(pinia)
-
-// تهيئة المخازن
-const cacheStore = useCacheStore()
-const dataStore = useDataStore()
-
-// تهيئة التخزين المؤقت
-cacheStore.updateSettings({
-  defaultTTL: 5 * 60 * 1000, // 5 دقائق
-  enabled: true
-})
+// Configure axios with environment variables
+axios.defaults.baseURL = import.meta.env.VITE_API_BASE_URL || '/api/'
 
 // Get user preferred theme
 const prefersDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches
@@ -83,25 +67,13 @@ const vuetify = createVuetify({
   rtl: true, // Enable RTL for Arabic
 })
 
-// إضافة المكونات الأخرى للتطبيق
+const app = createApp(App)
+
+app.use(createPinia())
 app.use(router)
 app.use(vuetify)
 
-// جعل API متاحًا عالميًا
-app.config.globalProperties.$api = api
-
-// تحميل البيانات المشتركة عند بدء التطبيق
-router.beforeEach(async (_, __, next) => {
-  // تحميل البيانات المشتركة إذا لم تكن محملة بالفعل
-  if (dataStore.classOptions.length === 0) {
-    try {
-      // تحميل البيانات المشتركة بالتوازي
-      await dataStore.fetchAllData();
-    } catch (error) {
-      console.error('Error loading shared data:', error);
-    }
-  }
-  next();
-})
+// Make axios available globally
+app.config.globalProperties.$axios = axios
 
 app.mount('#app')
