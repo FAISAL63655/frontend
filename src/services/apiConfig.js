@@ -121,7 +121,21 @@ export default api;
 
 // تصدير دالة مساعدة للحصول على عنوان URL كامل للصور
 export const getFullImageUrl = (imagePath) => {
-  if (!imagePath) return null;
+  // إذا لم يكن هناك مسار، ارجع null
+  if (!imagePath) {
+    console.log('getFullImageUrl: لا يوجد مسار للصورة');
+    return null;
+  }
+
+  // استخراج الجزء الأساسي من عنوان API
+  const getBaseUrl = () => {
+    const baseUrl = apiBaseUrl.endsWith('/api/')
+      ? apiBaseUrl.slice(0, -4) // إزالة '/api'
+      : apiBaseUrl.endsWith('/api')
+        ? apiBaseUrl.slice(0, -3) // إزالة 'api'
+        : apiBaseUrl;
+    return baseUrl;
+  };
 
   // إذا كان المسار يبدأ بـ http أو https، فهو مسار كامل بالفعل
   if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
@@ -132,44 +146,32 @@ export const getFullImageUrl = (imagePath) => {
       const parts = imagePath.split('/');
       const filename = parts[parts.length - 1];
 
-      // استخراج الجزء الأساسي من عنوان API
-      const baseUrl = apiBaseUrl.endsWith('/api/')
-        ? apiBaseUrl.slice(0, -4) // إزالة '/api'
-        : apiBaseUrl.endsWith('/api')
-          ? apiBaseUrl.slice(0, -3) // إزالة 'api'
-          : apiBaseUrl;
-
       // إنشاء مسار جديد باستخدام المجلد الصحيح
-      return `${baseUrl}/media/students/${filename}`;
+      const newUrl = `${getBaseUrl()}/media/students/${filename}`;
+      console.log(`getFullImageUrl: تم تحويل مسار الصورة من ${imagePath} إلى ${newUrl}`);
+      return newUrl;
     }
 
+    // إذا كان المسار كاملاً ولكن ليس من الخادم الخاص بنا
+    console.log(`getFullImageUrl: مسار كامل: ${imagePath}`);
     return imagePath;
   }
 
   // إذا كان المسار يبدأ بـ /media، فأضف عنوان API الأساسي
   if (imagePath.startsWith('/media')) {
-    // استخراج الجزء الأساسي من عنوان API (بدون /api/)
-    const baseUrl = apiBaseUrl.endsWith('/api/')
-      ? apiBaseUrl.slice(0, -4) // إزالة '/api'
-      : apiBaseUrl.endsWith('/api')
-        ? apiBaseUrl.slice(0, -3) // إزالة 'api'
-        : apiBaseUrl;
-
-    return `${baseUrl}${imagePath}`;
+    const fullUrl = `${getBaseUrl()}${imagePath}`;
+    console.log(`getFullImageUrl: مسار يبدأ بـ /media: ${imagePath} -> ${fullUrl}`);
+    return fullUrl;
   }
 
   // إذا كان المسار لا يحتوي على /media ولكنه يشير إلى صورة
   if (imagePath.startsWith('students/')) {
-    // استخراج الجزء الأساسي من عنوان API
-    const baseUrl = apiBaseUrl.endsWith('/api/')
-      ? apiBaseUrl.slice(0, -4) // إزالة '/api'
-      : apiBaseUrl.endsWith('/api')
-        ? apiBaseUrl.slice(0, -3) // إزالة 'api'
-        : apiBaseUrl;
-
-    return `${baseUrl}/media/${imagePath}`;
+    const fullUrl = `${getBaseUrl()}/media/${imagePath}`;
+    console.log(`getFullImageUrl: مسار يبدأ بـ students/: ${imagePath} -> ${fullUrl}`);
+    return fullUrl;
   }
 
-  // إرجاع المسار كما هو إذا لم يتطابق مع أي من الحالات السابقة
+  // إذا كان المسار لا يتطابق مع أي من الحالات السابقة
+  console.log(`getFullImageUrl: مسار غير معروف: ${imagePath}`);
   return imagePath;
 };

@@ -545,20 +545,56 @@ const filteredStudents = computed(() => {
 
 // دالة مساعدة للتأكد من وجود صورة أو استخدام صورة افتراضية
 const getStudentImage = (imagePath) => {
-  if (!imagePath) return 'https://cdn.vuetifyjs.com/images/john.jpg'
+  // الصورة الافتراضية للطالب
+  const defaultImage = 'https://cdn.vuetifyjs.com/images/john.jpg'
+
+  // إذا لم يكن هناك مسار، استخدم الصورة الافتراضية
+  if (!imagePath) {
+    console.log('لا يوجد مسار للصورة، استخدام الصورة الافتراضية')
+    return defaultImage
+  }
 
   // إذا كان المسار يبدأ بـ http أو https
   if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
     // التحقق من أن المسار يشير إلى صورة موجودة
     if (imagePath.includes('teachease-backend.onrender.com/media/')) {
-      console.log('تم اكتشاف مسار صورة قديم:', imagePath)
-      // استخدام الصورة الافتراضية بدلاً من المسار القديم
-      return 'https://cdn.vuetifyjs.com/images/john.jpg'
+      // استخراج اسم الملف من المسار
+      const parts = imagePath.split('/')
+      const filename = parts[parts.length - 1]
+
+      // استخراج الجزء الأساسي من عنوان API
+      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || '/api/'
+      const baseUrl = apiBaseUrl.endsWith('/api/')
+        ? apiBaseUrl.slice(0, -4) // إزالة '/api'
+        : apiBaseUrl.endsWith('/api')
+          ? apiBaseUrl.slice(0, -3) // إزالة 'api'
+          : apiBaseUrl
+
+      // إنشاء مسار جديد باستخدام المجلد الصحيح
+      const newUrl = `${baseUrl}/media/students/${filename}`
+      console.log(`تم تحويل مسار الصورة من ${imagePath} إلى ${newUrl}`)
+      return newUrl
     }
+
+    // إذا كان المسار كاملاً ولكن ليس من الخادم الخاص بنا
+    return imagePath
   }
 
-  // استخدام دالة getFullImageUrl للحصول على المسار الكامل
-  return getFullImageUrl(imagePath)
+  // إذا كان المسار يبدأ بـ /media
+  if (imagePath.startsWith('/media/')) {
+    // استخدام دالة getFullImageUrl للحصول على المسار الكامل
+    return getFullImageUrl(imagePath)
+  }
+
+  // إذا كان المسار يبدأ بـ students/
+  if (imagePath.startsWith('students/')) {
+    // استخدام دالة getFullImageUrl للحصول على المسار الكامل
+    return getFullImageUrl(imagePath)
+  }
+
+  // إذا لم يتطابق المسار مع أي من الحالات السابقة، استخدم الصورة الافتراضية
+  console.log(`مسار غير معروف: ${imagePath}، استخدام الصورة الافتراضية`)
+  return defaultImage
 }
 
 // تعديل previewSelectedImage لمعالجة الملفات بشكل أكثر أمانًا
