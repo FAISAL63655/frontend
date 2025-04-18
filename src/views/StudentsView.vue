@@ -548,22 +548,51 @@ const getStudentImage = (imagePath) => {
   return getFullImageUrl(imagePath)
 }
 
-// تعديل previewSelectedImage
+// تعديل previewSelectedImage لمعالجة الملفات بشكل أكثر أمانًا
 const previewSelectedImage = (file) => {
-  if (file) {
-    const reader = new FileReader()
-    studentForm.value.imageFile = file // تعيين الملف للإرسال في الطلب
-    reader.onload = (e) => {
-      studentForm.value.image = e.target.result
-      console.log('تم تحميل صورة معاينة:', studentForm.value.image.substring(0, 50) + '...')
+  console.log('تم اختيار ملف:', file)
+
+  // إعادة تعيين الملف أولاً
+  studentForm.value.imageFile = null
+
+  if (file && file instanceof File) {
+    // التحقق من أن الملف هو كائن File صالح
+    try {
+      const reader = new FileReader()
+      studentForm.value.imageFile = file // تعيين الملف للإرسال في الطلب
+
+      reader.onload = (e) => {
+        studentForm.value.image = e.target.result
+        console.log('تم تحميل صورة معاينة:', e.target.result.substring(0, 50) + '...')
+      }
+
+      reader.onerror = (error) => {
+        console.error('خطأ في قراءة الملف:', error)
+        resetImageToDefault()
+      }
+
+      reader.readAsDataURL(file)
+    } catch (error) {
+      console.error('خطأ في معالجة الملف:', error)
+      resetImageToDefault()
     }
-    reader.readAsDataURL(file)
   } else {
-    // إذا تم إلغاء اختيار الملف، نعيد تعيين الصورة إلى القيمة الافتراضية
-    studentForm.value.imageFile = null
-    studentForm.value.image = isEditMode.value ?
-      students.value.find(s => s.id === studentForm.value.id)?.image :
-      'https://cdn.vuetifyjs.com/images/john.jpg'
+    // إذا لم يكن هناك ملف أو كان الملف غير صالح
+    resetImageToDefault()
+  }
+}
+
+// دالة مساعدة لإعادة تعيين الصورة إلى القيمة الافتراضية
+const resetImageToDefault = () => {
+  studentForm.value.imageFile = null
+
+  if (isEditMode.value && studentForm.value.id) {
+    // في وضع التعديل، نستخدم الصورة الحالية للطالب
+    const currentStudent = students.value.find(s => s.id === studentForm.value.id)
+    studentForm.value.image = currentStudent?.image || 'https://cdn.vuetifyjs.com/images/john.jpg'
+  } else {
+    // في وضع الإضافة، نستخدم الصورة الافتراضية
+    studentForm.value.image = 'https://cdn.vuetifyjs.com/images/john.jpg'
   }
 }
 
@@ -880,9 +909,12 @@ const saveStudent = async () => {
     formData.append('section', studentForm.value.section_id)   // في الخادم الخلفي، الحقل هو section
     formData.append('status', studentForm.value.status)       // إضافة حقل الحالة
 
-    if (studentForm.value.imageFile) {
+    // التحقق من وجود ملف صورة صالح
+    if (studentForm.value.imageFile && studentForm.value.imageFile instanceof File) {
       formData.append('image', studentForm.value.imageFile)
       console.log('تم إرفاق ملف صورة للإرسال:', studentForm.value.imageFile.name)
+    } else {
+      console.log('تم إرفاق ملف صورة للإرسال:', studentForm.value.imageFile)
     }
 
     console.log('Saving student with data:', {
