@@ -1090,7 +1090,8 @@ const headers = ref([
   { title: 'الواجبات', key: 'assignments', align: 'center', sortable: false },
   { title: 'الحضور', key: 'attendance', align: 'center', sortable: false },
   { title: 'المجموع (100)', key: 'total', align: 'center' },
-  { title: 'النهائي (60)', key: 'final', align: 'center' },
+  { title: 'النهائي (40)', key: 'final', align: 'center' },
+  { title: 'القرآن (20)', key: 'quran', align: 'center' },
   { title: 'المشاركة (10)', key: 'participation', align: 'center' },
   { title: 'الواجبات (10)', key: 'homework', align: 'center' },
   { title: 'الشفوي (5)', key: 'practical', align: 'center' },
@@ -1251,6 +1252,7 @@ const fetchStudents = async () => {
         practical: null,
         homework: null,
         participation: null,
+        quran: null,
         final: null,
         attendance: 'present',
         assignmentStatus: 'not_submitted',
@@ -1296,6 +1298,8 @@ const fetchStudents = async () => {
               }
             } else if (grade.type === 'participation') {
               student.participation = grade.score
+            } else if (grade.type === 'quran') {
+              student.quran = grade.score
             } else if (grade.type === 'final') {
               student.final = grade.score
             }
@@ -1330,6 +1334,8 @@ const fetchStudents = async () => {
                 }
               } else if (grade.type === 'participation' && student.participation === null) {
                 student.participation = grade.score
+              } else if (grade.type === 'quran' && student.quran === null) {
+                student.quran = grade.score
               } else if (grade.type === 'final' && student.final === null) {
                 student.final = grade.score
               }
@@ -1424,9 +1430,10 @@ const calculateTotal = (student) => {
   const practical = Number(student.practical || 0)
   const homework = Number(student.homework || 0)
   const participation = Number(student.participation || 0)
+  const quran = Number(student.quran || 0)
   const final = Number(student.final || 0)
 
-  return theory + practical + homework + participation + final
+  return theory + practical + homework + participation + quran + final
 }
 
 // Get color for grade type
@@ -1445,6 +1452,10 @@ const getGradeColor = (type) => {
     case 'مشاركة':
     case 'participation':
       return 'success'
+    case 'القرآن':
+    case 'قرآن':
+    case 'quran':
+      return 'purple'
     case 'نهائي':
     case 'final':
       return 'error'
@@ -1483,9 +1494,10 @@ const saveGrade = async (student, type) => {
     let maxScore = 100
     if (type === 'theory') maxScore = 15
     else if (type === 'practical') maxScore = 5 // الشفوي
-    else if (type === 'homework') maxScore = 10 // تم تعديلها من 30 إلى 10
-    else if (type === 'participation') maxScore = 10
-    else if (type === 'final') maxScore = 60 // تم تعديلها من 40 إلى 60
+    else if (type === 'homework') maxScore = 10 // الواجبات
+    else if (type === 'participation') maxScore = 10 // المشاركة
+    else if (type === 'quran') maxScore = 20 // القرآن الكريم
+    else if (type === 'final') maxScore = 40 // النهائي
 
     // التحقق من أن الدرجة لا تتجاوز الدرجة القصوى
     const score = Number(student[type] || 0)
@@ -1556,6 +1568,7 @@ const saveGrade = async (student, type) => {
           else if (type === 'practical') gradeTypeText = 'الشفوي'
           else if (type === 'homework') gradeTypeText = 'الواجبات'
           else if (type === 'participation') gradeTypeText = 'المشاركة'
+          else if (type === 'quran') gradeTypeText = 'القرآن'
           else if (type === 'final') gradeTypeText = 'النهائي'
 
           // إنشاء تنبيه للدرجة الجديدة
@@ -1589,6 +1602,7 @@ const saveGrade = async (student, type) => {
           else if (type === 'practical') gradeTypeText = 'الشفوي'
           else if (type === 'homework') gradeTypeText = 'الواجبات'
           else if (type === 'participation') gradeTypeText = 'المشاركة'
+          else if (type === 'quran') gradeTypeText = 'القرآن'
           else if (type === 'final') gradeTypeText = 'النهائي'
 
           // إنشاء تنبيه للدرجة الجديدة
