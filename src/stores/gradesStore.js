@@ -11,6 +11,9 @@ export const useGradesStore = defineStore('grades', () => {
   const submissions = ref({}) // Entregas por estudiante y asignación
   const lastFetch = ref({}) // Timestamp de la última actualización
 
+  // Inicializar objetos para evitar errores
+  attendance.value = {}
+
   // Tiempo de caducidad de la caché (5 minutos)
   const CACHE_EXPIRY = 5 * 60 * 1000
 
@@ -41,15 +44,31 @@ export const useGradesStore = defineStore('grades', () => {
   const getAttendanceByStudentAndDate = computed(() => {
     return (studentId, date) => {
       try {
+        // Asegurarse de que attendance.value esté inicializado
         if (!attendance.value) {
-          console.log(`Attendance object is not initialized for student ${studentId} and date ${date}`)
-          return null
+          attendance.value = {}
+          console.log(`Attendance object initialized for student ${studentId} and date ${date}`)
         }
+
         const key = `${studentId}-${date}`
+        // Verificar si existe la clave específica
+        if (!attendance.value[key]) {
+          // Si no existe, devolver un objeto con valores por defecto
+          return {
+            student: studentId,
+            date: date,
+            status: 'present' // Valor por defecto
+          }
+        }
         return attendance.value[key]
       } catch (error) {
         console.error(`Error in getAttendanceByStudentAndDate for student ${studentId} and date ${date}:`, error)
-        return null
+        // Devolver un objeto con valores por defecto en caso de error
+        return {
+          student: studentId,
+          date: date,
+          status: 'present' // Valor por defecto
+        }
       }
     }
   })
@@ -190,6 +209,11 @@ export const useGradesStore = defineStore('grades', () => {
   }
 
   const fetchAttendanceForDate = async (date, classId, sectionId) => {
+    // Asegurarse de que attendance.value esté inicializado
+    if (!attendance.value) {
+      attendance.value = {}
+    }
+
     const key = `attendance-${date}-${classId}-${sectionId}`
 
     // Si los datos están en caché y son válidos, no hacer la solicitud
@@ -220,10 +244,7 @@ export const useGradesStore = defineStore('grades', () => {
       return response.data
     } catch (error) {
       console.error('Error fetching attendance:', error)
-      // Inicializar el objeto de asistencia para evitar errores
-      if (!attendance.value) {
-        attendance.value = {}
-      }
+      // Inicializar valores por defecto para todos los estudiantes
       lastFetch.value[key] = Date.now() // Evitar solicitudes repetidas
       return []
     }

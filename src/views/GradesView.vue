@@ -1348,6 +1348,21 @@ const fetchStudents = async () => {
           // استخدام التاريخ المحدد أو التاريخ الحالي إذا لم يتم تحديد تاريخ
           const dateToCheck = selectedDate.value || new Date().toISOString().split('T')[0]
 
+          // Asegurarse de que attendance.value esté inicializado
+          if (!gradesStore.attendance.value) {
+            gradesStore.attendance.value = {}
+          }
+
+          // Crear un registro de asistencia por defecto para este estudiante
+          const attendanceKey = `${student.id}-${dateToCheck}`
+          if (!gradesStore.attendance.value[attendanceKey]) {
+            gradesStore.attendance.value[attendanceKey] = {
+              student: student.id,
+              date: dateToCheck,
+              status: 'present' // Valor por defecto
+            }
+          }
+
           // Obtener la asistencia del store
           if (!gradesStore.attendance.value[`${student.id}-${dateToCheck}`]) {
             // Si no está en caché, cargar la asistencia para toda la clase
@@ -1375,6 +1390,7 @@ const fetchStudents = async () => {
           }
         } catch (attendanceError) {
           console.error(`Error fetching attendance for student ${student.id}:`, attendanceError)
+          student.attendance = 'present' // Valor por defecto en caso de error
         }
 
         // جلب تسليمات الواجبات للطالب
@@ -2229,6 +2245,16 @@ const openStudentDetails = async (student) => {
     // Inicializar el objeto de asistencia si no existe
     if (!gradesStore.attendance.value) {
       gradesStore.attendance.value = {}
+    }
+
+    // Crear un registro de asistencia por defecto para este estudiante
+    const attendanceKey = `${studentId}-${currentDate}`
+    if (!gradesStore.attendance.value[attendanceKey]) {
+      gradesStore.attendance.value[attendanceKey] = {
+        student: studentId,
+        date: currentDate,
+        status: 'present' // Valor por defecto
+      }
     }
 
     // Cargar la asistencia si no está en caché
