@@ -7,6 +7,10 @@
             <h1 class="text-h4 text-white mb-2">مرحباً بك، فيصل الجطيلي</h1>
             <p class="text-subtitle-1 text-white text-opacity-75 mb-0">لديك {{ stats.alertsCount }} تنبيهات جديدة اليوم</p>
           </div>
+          <v-btn color="white" variant="outlined" @click="reloadDashboard" class="d-none d-md-flex">
+            <v-icon start>mdi-refresh</v-icon>
+            تحديث البيانات
+          </v-btn>
           <v-avatar size="120" color="white" class="elevation-4">
             <v-icon size="64" color="primary">mdi-account</v-icon>
           </v-avatar>
@@ -216,80 +220,23 @@
       </v-col>
     </v-row>
 
-    <!-- Performance Chart -->
-    <v-card class="mb-6" variant="flat">
-      <v-card-item>
-        <template v-slot:prepend>
-          <v-avatar color="primary" variant="tonal">
-            <v-icon icon="mdi-chart-line"></v-icon>
-          </v-avatar>
-        </template>
-        <v-card-title class="text-h6">تحليل أداء الطلاب</v-card-title>
-        <template v-slot:append>
-          <v-select
-            v-model="selectedClass"
-            :items="['الصف الأول', 'الصف الثاني', 'الصف الثالث', 'الصف الرابع']"
-            variant="outlined"
-            density="compact"
-            class="chart-select"
-            hide-details
-            label="اختر الصف"
-          ></v-select>
-        </template>
-      </v-card-item>
+    <!-- New Row for Additional Components -->
+    <v-row>
+      <!-- Top Students Card -->
+      <v-col cols="12" md="4">
+        <top-students-card />
+      </v-col>
 
-      <v-divider></v-divider>
+      <!-- Weekly Attendance Card -->
+      <v-col cols="12" md="4">
+        <weekly-attendance-card />
+      </v-col>
 
-      <v-card-text class="pt-4">
-        <div v-if="hasError" class="text-center my-4">
-          <v-alert type="error" variant="tonal" title="خطأ في تحميل البيانات">
-            {{ errorMessage }}
-            <template v-slot:append>
-              <v-btn color="error" variant="tonal" @click="reloadDashboard">إعادة المحاولة</v-btn>
-            </template>
-          </v-alert>
-        </div>
-
-        <div v-else-if="isLoadingStats" class="d-flex justify-center align-center pa-12">
-          <v-progress-circular indeterminate color="primary"></v-progress-circular>
-        </div>
-
-        <div v-else>
-          <!-- Chart Section -->
-          <div class="d-flex justify-space-between align-center flex-wrap mb-4">
-            <div class="mb-2 mb-md-0">
-              <div class="text-subtitle-2 text-medium-emphasis">متوسط درجات الطلاب</div>
-              <div class="text-h5 font-weight-bold">85.4<span class="text-success text-subtitle-1 ms-2">+2.5%</span></div>
-            </div>
-            <div class="d-flex">
-              <v-btn-toggle v-model="chartPeriod" color="primary" mandatory density="comfortable" variant="outlined">
-                <v-btn value="week">أسبوع</v-btn>
-                <v-btn value="month">شهر</v-btn>
-                <v-btn value="year">سنة</v-btn>
-              </v-btn-toggle>
-            </div>
-          </div>
-
-          <!-- Chart Placeholder (will be replaced with actual chart) -->
-          <v-sheet height="300" class="d-flex align-center justify-center rounded-lg">
-            <div class="chart-container">
-              <!-- Mock chart -->
-              <div class="d-flex align-end justify-space-around h-100 w-100 pa-4 chart-bars">
-                <div v-for="(subject, i) in ['القرآن', 'التوحيد', 'الفقه', 'الحديث', 'اللغة العربية']" :key="i">
-                  <div class="chart-bar" :style="{ height: `${70 + Math.floor(Math.random() * 25)}%` }"></div>
-                  <div class="text-caption text-center mt-2">{{ subject }}</div>
-                </div>
-              </div>
-              <div class="chart-horizontal-lines">
-                <div v-for="n in 5" :key="n" class="chart-line">
-                  <span class="chart-line-label">{{ 100 - (n-1)*20 }}%</span>
-                </div>
-              </div>
-            </div>
-          </v-sheet>
-        </div>
-      </v-card-text>
-    </v-card>
+      <!-- Recent Notes Card -->
+      <v-col cols="12" md="4">
+        <recent-notes-card />
+      </v-col>
+    </v-row>
   </div>
 </template>
 
@@ -298,11 +245,10 @@ import { ref, onMounted } from 'vue'
 import api from '../services/api'
 import NotificationService from '../services/NotificationService'
 
-// Selected class for chart filtering
-const selectedClass = ref('الصف الأول')
-
-// Chart period
-const chartPeriod = ref('month')
+// Import new components
+import TopStudentsCard from '../components/dashboard/TopStudentsCard.vue'
+import WeeklyAttendanceCard from '../components/dashboard/WeeklyAttendanceCard.vue'
+import RecentNotesCard from '../components/dashboard/RecentNotesCard.vue'
 
 // Stats data
 const stats = ref({
