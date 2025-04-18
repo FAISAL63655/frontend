@@ -2198,7 +2198,8 @@ const openStudentDetails = async (student) => {
     showStudentDetailsDialog.value = true
 
     // Cargar datos del estudiante
-    console.time('loadStudentDetails')
+    const timerLabel = `loadStudentDetails-${student.id}-${Date.now()}`
+    console.time(timerLabel)
 
     // Cargar calificaciones desde el store
     const studentId = student.id
@@ -2266,7 +2267,7 @@ const openStudentDetails = async (student) => {
     studentNotes.value = notesResponse.data || []
     console.log('Fetched notes for student details:', studentNotes.value)
 
-    console.timeEnd('loadStudentDetails')
+    console.timeEnd(timerLabel)
   } catch (error) {
     console.error('Error loading student details:', error)
     if (error.response) {
@@ -2351,11 +2352,12 @@ const fetchCurrentAssignment = async () => {
   if (!selectedSubject.value) return
 
   try {
-    console.time('fetchAssignments')
+    const assignmentsTimerLabel = `fetchAssignments-${selectedSubject.value}-${Date.now()}`
+    console.time(assignmentsTimerLabel)
 
     // Usar el store para obtener las asignaciones
     const assignmentsData = await gradesStore.fetchAssignmentsBySubject(selectedSubject.value)
-    console.timeEnd('fetchAssignments')
+    console.timeEnd(assignmentsTimerLabel)
 
     console.log('Fetched assignments for subject:', selectedSubject.value, assignmentsData)
 
