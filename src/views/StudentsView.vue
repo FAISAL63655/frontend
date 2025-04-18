@@ -491,12 +491,15 @@
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
-import axios from 'axios'
 import api, { getFullImageUrl } from '@/services/apiConfig'
+import { useDataStore } from '@/stores/data'
+
+// استخدام مخزن البيانات
+const dataStore = useDataStore()
 
 // Data
-const classes = ref([])
-const sections = ref([])
+const classes = computed(() => dataStore.classes)
+const sections = computed(() => dataStore.sections)
 const students = ref([])
 const selectedClass = ref(null)
 const selectedSection = ref(null)
@@ -570,27 +573,25 @@ const previewSelectedImage = (file) => {
 // Fetch data on component mount
 onMounted(async () => {
   try {
-    // Fetch classes
-    const classesResponse = await api.get('classes/')
-    classes.value = classesResponse.data || []
-
-    console.log('Fetched classes:', classes.value)
-
-    if (classes.value.length > 0) {
-      selectedClass.value = classes.value[0].id
+    // استخدام مخزن البيانات للحصول على البيانات المشتركة
+    // إذا لم تكن البيانات محملة بالفعل، سيقوم المخزن بتحميلها
+    if (dataStore.classes.length === 0 || dataStore.sections.length === 0) {
+      await dataStore.fetchAllData()
     }
 
-    // Fetch sections
-    const sectionsResponse = await api.get('sections/')
-    sections.value = sectionsResponse.data || []
+    console.log('Classes from store:', dataStore.classes)
+    console.log('Sections from store:', dataStore.sections)
 
-    console.log('Fetched sections:', sections.value)
-
-    if (sections.value.length > 0) {
-      selectedSection.value = sections.value[0].id
+    // تعيين القيم الافتراضية للصف والفصل
+    if (dataStore.classes.length > 0 && !selectedClass.value) {
+      selectedClass.value = dataStore.classes[0].id
     }
 
-    // Fetch students
+    if (dataStore.sections.length > 0 && !selectedSection.value) {
+      selectedSection.value = dataStore.sections[0].id
+    }
+
+    // تحميل الطلاب بناءً على الصف والفصل المحددين
     await fetchStudents()
   } catch (error) {
     console.error('Error fetching initial data:', error)
@@ -602,33 +603,32 @@ onMounted(async () => {
   }
 })
 
-// تعديل fetchStudents
+// تعديل fetchStudents لاستخدام مخزن البيانات
 const fetchStudents = async () => {
   if (!selectedClass.value || !selectedSection.value) return
 
   try {
-    const response = await api.get('students/by_class_section/', {
-      params: {
-        class_id: selectedClass.value,
-        section_id: selectedSection.value
-      }
-    })
+    // استخدام مخزن البيانات للحصول على الطلاب
+    const fetchedStudents = await dataStore.fetchStudentsByClassAndSection(
+      selectedClass.value,
+      selectedSection.value,
+      false // استخدام التخزين المؤقت إذا كان متاحًا
+    )
 
-    // معالجة دقيقة للبيانات والتأكد من تحويل الأنواع
-    students.value = response.data.map(student => {
-      // طباعة البيانات الواردة من الخادم للتأكد من صحتها
-      console.log('Raw student data from server:', student)
+    // نسخ البيانات من المخزن إلى المكون
+    students.value = fetchedStudents.map(student => {
+      // طباعة البيانات للتأكد من صحتها
+      console.log('Student data from store:', student)
 
       const imageUrl = student.image ? getStudentImage(student.image) : 'https://cdn.vuetifyjs.com/images/john.jpg';
-      console.log(`صورة الطالب ${student.name}:`, student.image, ' -> ', imageUrl);
 
       return {
         id: student.id,
         name: student.name,
-        class_id: typeof student.class_name === 'string' ? parseInt(student.class_name) : student.class_name,
-        section_id: typeof student.section === 'string' ? parseInt(student.section) : student.section,
-        class_name: student.class_name_display || '',
-        section: student.section_display || '',
+        class_id: student.class_id,
+        section_id: student.section_id,
+        class_name: student.class_name || dataStore.getClassName(student.class_id),
+        section: student.section || dataStore.getSectionName(student.section_id),
         status: student.status || 'active',
         image: imageUrl
       }
@@ -757,7 +757,7 @@ const deleteStudent = async () => {
     console.log('Deleting student with ID:', studentToDelete.value.id)
 
     // إرسال طلب حذف الطالب إلى الخادم الخلفي
-    await axios.delete(`students/${studentToDelete.value.id}/`)
+    await api.delete(`students/${studentToDelete.value.id}/`)
 
     console.log('Student deleted successfully')
 
@@ -1017,7 +1017,7 @@ const addDummyData = () => {
 }
 
 // إضافة مراقبة للتغييرات في studentForm
-const watchStudentForm = watch(studentForm, (newValue) => {
+watch(studentForm, (newValue) => {
   console.log('Student form changed:', newValue)
 }, { deep: true })
 
