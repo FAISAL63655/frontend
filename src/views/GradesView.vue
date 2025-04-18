@@ -629,7 +629,9 @@
                     </v-chip>
                   </v-list-item-title>
                   <v-list-item-subtitle>
-                    <span v-if="record.schedule_info" class="text-caption">المادة: {{ record.schedule_info }}</span>
+                    <span v-if="record.schedule && record.schedule.subject_display" class="text-caption">المادة: {{ record.schedule.subject_display }}</span>
+                    <span v-else-if="record.schedule && record.schedule.subject && record.schedule.subject.name" class="text-caption">المادة: {{ record.schedule.subject.name }}</span>
+                    <span v-else-if="record.subject_info" class="text-caption">المادة: {{ record.subject_info }}</span>
                     <span class="text-caption me-2">تاريخ التسجيل: {{ formatDate(record.created_at) }}</span>
                   </v-list-item-subtitle>
                   <template #append>
@@ -651,7 +653,12 @@
                   </template>
                   <v-list-item-title>
                     <strong>{{ assignment.title }}</strong>
-                    <v-chip size="x-small" color="primary" class="ms-2">المادة: {{ assignment.subject_info }}</v-chip>
+                    <v-chip size="x-small" color="primary" class="ms-2">
+                      <span v-if="assignment.schedule && assignment.schedule.subject_display">المادة: {{ assignment.schedule.subject_display }}</span>
+                      <span v-else-if="assignment.schedule && assignment.schedule.subject && assignment.schedule.subject.name">المادة: {{ assignment.schedule.subject.name }}</span>
+                      <span v-else-if="assignment.subject_info">المادة: {{ assignment.subject_info }}</span>
+                      <span v-else>المادة: غير معروفة</span>
+                    </v-chip>
                   </v-list-item-title>
                   <v-list-item-subtitle>
                     <v-chip
