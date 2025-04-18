@@ -860,6 +860,15 @@ const getStudentImage = (imagePath) => {
     return defaultImage
   }
 
+  // معالجة مشكلة الشرطة المزدوجة في المسار
+  if (typeof imagePath === 'string') {
+    // إزالة الشرطة المزدوجة في المسار
+    imagePath = imagePath.replace(/([^:])\/{2,}/g, '$1/')
+
+    // طباعة المسار بعد الإصلاح
+    console.log('GradesView: المسار بعد إصلاح الشرطة المزدوجة:', imagePath)
+  }
+
   // إذا كان المسار يبدأ بـ http أو https
   if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
     // التحقق من أن المسار يشير إلى صورة موجودة

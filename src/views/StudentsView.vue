@@ -550,8 +550,20 @@ const getStudentImage = (imagePath) => {
 
   // إذا لم يكن هناك مسار، استخدم الصورة الافتراضية
   if (!imagePath) {
-    console.log('لا يوجد مسار للصورة، استخدام الصورة الافتراضية')
+    console.log('StudentsView: لا يوجد مسار للصورة، استخدام الصورة الافتراضية')
     return defaultImage
+  }
+
+  // معالجة مشكلة الشرطة المزدوجة في المسار
+  if (typeof imagePath === 'string') {
+    // إزالة الشرطة المزدوجة في المسار
+    const originalPath = imagePath;
+    imagePath = imagePath.replace(/([^:])\/{2,}/g, '$1/');
+
+    // طباعة المسار بعد الإصلاح إذا تم تغييره
+    if (originalPath !== imagePath) {
+      console.log(`StudentsView: تم إصلاح الشرطة المزدوجة من ${originalPath} إلى ${imagePath}`);
+    }
   }
 
   // إذا كان المسار يبدأ بـ http أو https
@@ -572,7 +584,7 @@ const getStudentImage = (imagePath) => {
 
       // إنشاء مسار جديد باستخدام المجلد الصحيح
       const newUrl = `${baseUrl}/media/students/${filename}`
-      console.log(`تم تحويل مسار الصورة من ${imagePath} إلى ${newUrl}`)
+      console.log(`StudentsView: تم تحويل مسار الصورة من ${imagePath} إلى ${newUrl}`)
       return newUrl
     }
 
@@ -593,7 +605,7 @@ const getStudentImage = (imagePath) => {
   }
 
   // إذا لم يتطابق المسار مع أي من الحالات السابقة، استخدم الصورة الافتراضية
-  console.log(`مسار غير معروف: ${imagePath}، استخدام الصورة الافتراضية`)
+  console.log(`StudentsView: مسار غير معروف: ${imagePath}، استخدام الصورة الافتراضية`)
   return defaultImage
 }
 

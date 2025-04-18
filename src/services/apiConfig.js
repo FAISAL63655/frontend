@@ -127,6 +127,18 @@ export const getFullImageUrl = (imagePath) => {
     return null;
   }
 
+  // معالجة مشكلة الشرطة المزدوجة في المسار
+  if (typeof imagePath === 'string') {
+    // إزالة الشرطة المزدوجة في المسار
+    const originalPath = imagePath;
+    imagePath = imagePath.replace(/([^:])\/{2,}/g, '$1/');
+
+    // طباعة المسار بعد الإصلاح إذا تم تغييره
+    if (originalPath !== imagePath) {
+      console.log(`getFullImageUrl: تم إصلاح الشرطة المزدوجة من ${originalPath} إلى ${imagePath}`);
+    }
+  }
+
   // استخراج الجزء الأساسي من عنوان API
   const getBaseUrl = () => {
     const baseUrl = apiBaseUrl.endsWith('/api/')
