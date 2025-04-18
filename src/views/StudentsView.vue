@@ -197,8 +197,9 @@
             </div>
 
             <div class="student-avatar-container">
-              <v-avatar size="80" class="student-avatar">
-                <v-img :src="student.image" :alt="student.name" cover></v-img>
+              <v-avatar size="80" class="student-avatar" :color="getAvatarColor(student.name)">
+                <v-img v-if="student.image" :src="student.image" :alt="student.name" cover></v-img>
+                <span v-else class="text-h3 text-white">{{ getInitials(student.name) }}</span>
               </v-avatar>
             </div>
 
@@ -256,8 +257,9 @@
       >
         <!-- Image Column -->
         <template v-slot:item.image="{ item }">
-          <v-avatar size="42" class="elevation-1">
-            <v-img :src="getTableItemImage(item)" :alt="getTableItemName(item)" cover></v-img>
+          <v-avatar size="42" class="elevation-1" :color="getAvatarColor(getTableItemName(item))">
+            <v-img v-if="getTableItemImage(item)" :src="getTableItemImage(item)" :alt="getTableItemName(item)" cover></v-img>
+            <span v-else class="text-subtitle-2 text-white">{{ getInitials(getTableItemName(item)) }}</span>
           </v-avatar>
         </template>
 
@@ -341,9 +343,9 @@
           <v-form ref="studentForm">
             <v-row justify="center">
               <v-col cols="12" class="text-center">
-                <v-avatar size="120" color="primary" class="mb-4 elevation-2">
+                <v-avatar size="120" :color="getAvatarColor(studentForm.name || '')" class="mb-4 elevation-2">
                   <v-img v-if="studentForm.image" :src="studentForm.image" :alt="studentForm.name || 'صورة الطالب'" cover></v-img>
-                  <span v-else class="text-h3 text-white">{{ studentForm.name ? studentForm.name.charAt(0) : 'ط' }}</span>
+                  <span v-else class="text-h3 text-white">{{ getInitials(studentForm.name || 'ط') }}</span>
                 </v-avatar>
 
                 <v-file-input
@@ -460,12 +462,14 @@
         </v-card-item>
 
         <v-card-text class="text-center pt-6 pb-2">
-          <v-avatar size="80" class="mb-3 elevation-2">
+          <v-avatar size="80" class="mb-3 elevation-2" :color="getAvatarColor(studentToDelete?.name || '')">
             <v-img
-              :src="studentToDelete?.image || 'https://cdn.vuetifyjs.com/images/john.jpg'"
+              v-if="studentToDelete?.image"
+              :src="studentToDelete.image"
               :alt="studentToDelete?.name || 'صورة الطالب'"
               cover
             ></v-img>
+            <span v-else class="text-h4 text-white">{{ getInitials(studentToDelete?.name || '') }}</span>
           </v-avatar>
           <h3 class="text-h6 mb-3">{{ studentToDelete?.name }}</h3>
           <p class="text-body-1 mb-4">هل أنت متأكد من رغبتك في حذف هذا الطالب؟</p>
@@ -494,6 +498,7 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import api, { getFullImageUrl, batchRequests } from '@/services/apiConfig'
 import { useSimpleCacheStore } from '@/stores/simpleCache'
+import { getInitials, getAvatarColor } from '@/utils/imageUtils'
 
 // Data
 const classes = ref([])
@@ -543,15 +548,12 @@ const filteredStudents = computed(() => {
 // استخدام دالة getFullImageUrl من apiConfig.js
 // تم تعريفها بالفعل في الأعلى
 
-// دالة مساعدة للتأكد من وجود صورة أو استخدام صورة افتراضية
-const getStudentImage = (imagePath) => {
-  // الصورة الافتراضية للطالب
-  const defaultImage = 'https://cdn.vuetifyjs.com/images/john.jpg'
-
-  // إذا لم يكن هناك مسار، استخدم الصورة الافتراضية
+// دالة مساعدة للتأكد من وجود صورة أو استخدام الحرف الأول من الاسم
+const getStudentImage = (imagePath, studentName = '') => {
+  // إذا لم يكن هناك مسار، استخدم null لعرض الحرف الأول من الاسم
   if (!imagePath) {
-    console.log('لا يوجد مسار للصورة، استخدام الصورة الافتراضية')
-    return defaultImage
+    console.log('لا يوجد مسار للصورة، سيتم استخدام الحرف الأول من الاسم')
+    return null
   }
 
   // إذا كان المسار يبدأ بـ http أو https
@@ -592,9 +594,9 @@ const getStudentImage = (imagePath) => {
     return getFullImageUrl(imagePath)
   }
 
-  // إذا لم يتطابق المسار مع أي من الحالات السابقة، استخدم الصورة الافتراضية
-  console.log(`مسار غير معروف: ${imagePath}، استخدام الصورة الافتراضية`)
-  return defaultImage
+  // إذا لم يتطابق المسار مع أي من الحالات السابقة، استخدم null لعرض الحرف الأول من الاسم
+  console.log(`مسار غير معروف: ${imagePath}، سيتم استخدام الحرف الأول من الاسم`)
+  return null
 }
 
 // تعديل previewSelectedImage لمعالجة الملفات بشكل أكثر أمانًا
@@ -666,10 +668,10 @@ const resetImageToDefault = () => {
   if (isEditMode.value && studentForm.value.id) {
     // في وضع التعديل، نستخدم الصورة الحالية للطالب
     const currentStudent = students.value.find(s => s.id === studentForm.value.id)
-    studentForm.value.image = currentStudent?.image || 'https://cdn.vuetifyjs.com/images/john.jpg'
+    studentForm.value.image = currentStudent?.image || null
   } else {
-    // في وضع الإضافة، نستخدم الصورة الافتراضية
-    studentForm.value.image = 'https://cdn.vuetifyjs.com/images/john.jpg'
+    // في وضع الإضافة، نستخدم null لعرض الحرف الأول من الاسم
+    studentForm.value.image = null
   }
 }
 
@@ -768,14 +770,14 @@ const fetchStudents = async () => {
       console.log('Raw student data from server:', student)
 
       // التعامل مع الصورة بشكل صحيح
-      let imageUrl = 'https://cdn.vuetifyjs.com/images/john.jpg';
+      let imageUrl = null; // استخدام null لعرض الحرف الأول من الاسم
       if (student.image) {
         // استخدام image_url إذا كانت موجودة (من الخادم)
         if (student.image_url) {
           imageUrl = student.image_url;
         } else {
           // استخدام دالة getStudentImage للحصول على المسار الكامل
-          imageUrl = getStudentImage(student.image);
+          imageUrl = getStudentImage(student.image, student.name);
         }
       }
       console.log(`صورة الطالب ${student.name}:`, student.image, ' -> ', imageUrl);
@@ -1020,7 +1022,7 @@ const saveStudent = async () => {
       })
 
       console.log('Student updated successfully:', response.data)
-      const imageUrl = response.data.image ? getStudentImage(response.data.image) : currentImagePreview;
+      const imageUrl = response.data.image ? getStudentImage(response.data.image, response.data.name) : currentImagePreview;
       console.log('صورة الطالب بعد التحديث:', response.data.image, ' -> ', imageUrl);
 
       // تحويل البيانات المستلمة إلى الشكل المطلوب
@@ -1049,7 +1051,7 @@ const saveStudent = async () => {
       })
 
       console.log('Student created successfully:', response.data)
-      const imageUrl = response.data.image ? getStudentImage(response.data.image) : (currentImagePreview || 'https://cdn.vuetifyjs.com/images/john.jpg');
+      const imageUrl = response.data.image ? getStudentImage(response.data.image, response.data.name) : currentImagePreview;
       console.log('صورة الطالب الجديد:', response.data.image, ' -> ', imageUrl);
 
       // تحويل البيانات المستلمة إلى الشكل المطلوب
@@ -1090,12 +1092,12 @@ const saveStudent = async () => {
           class_name: classes.value.find(c => c.id === studentForm.value.class_id)?.name || '',
           section: sections.value.find(s => s.id === studentForm.value.section_id)?.name || '',
           status: studentForm.value.status,
-          image: studentForm.value.image || 'https://cdn.vuetifyjs.com/images/john.jpg'
+          image: studentForm.value.image
         }
       }
     } else {
       // Add new student to list with dummy ID
-      const newStudentImage = studentForm.value.image || 'https://cdn.vuetifyjs.com/images/john.jpg';
+      const newStudentImage = studentForm.value.image;
       console.log('Using image for new student:', newStudentImage);
 
       students.value.push({

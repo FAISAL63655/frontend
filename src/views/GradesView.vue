@@ -268,19 +268,15 @@
       >
         <!-- Image Column -->
         <template #[`item.image`]="{ item }">
-          <v-avatar size="40" class="elevation-1" style="border: 2px solid #f5f5f5;">
+          <v-avatar size="40" class="elevation-1" :color="item.image ? undefined : getAvatarColor(item.name)" style="border: 2px solid #f5f5f5;">
             <v-img
+              v-if="item.image"
               :src="item.image"
               alt="Student"
               cover
               @error="handleImageError(item)"
-            >
-              <template v-slot:placeholder>
-                <v-avatar size="40" color="primary">
-                  <span class="text-h6 text-white">{{ item.name ? item.name.charAt(0) : 'ط' }}</span>
-                </v-avatar>
-              </template>
-            </v-img>
+            ></v-img>
+            <span v-else class="text-subtitle-2 text-white">{{ getInitials(item.name) }}</span>
           </v-avatar>
         </template>
 
@@ -564,19 +560,15 @@
       <v-card>
         <v-card-title class="d-flex flex-column align-start">
           <div class="d-flex align-center gap-2 mb-2">
-            <v-avatar size="60" class="elevation-2">
+            <v-avatar size="60" class="elevation-2" :color="selectedStudent?.image ? undefined : getAvatarColor(selectedStudent?.name || '')">
               <v-img
-                :src="selectedStudent?.image"
+                v-if="selectedStudent?.image"
+                :src="selectedStudent.image"
                 cover
                 alt="صورة الطالب"
                 @error="handleStudentDetailsImageError"
-              >
-                <template v-slot:placeholder>
-                  <v-avatar size="60" color="primary">
-                    <span class="text-h5 text-white">{{ selectedStudent?.name ? selectedStudent.name.charAt(0) : 'ط' }}</span>
-                  </v-avatar>
-                </template>
-              </v-img>
+              ></v-img>
+              <span v-else class="text-h5 text-white">{{ getInitials(selectedStudent?.name || 'ط') }}</span>
             </v-avatar>
             <div>
               <h3 class="text-h5 font-weight-bold mb-1">{{ selectedStudent?.name }}</h3>
@@ -887,16 +879,14 @@ import axios from 'axios'
 import api, { getFullImageUrl } from '@/services/apiConfig'
 import EncouragementDialog from '@/components/EncouragementDialog.vue'
 import NotificationHelper from '@/services/NotificationHelper'
+import { getInitials, getAvatarColor } from '@/utils/imageUtils'
 
-// دالة مساعدة للتأكد من وجود صورة أو استخدام صورة افتراضية
-const getStudentImage = (imagePath) => {
-  // الصورة الافتراضية للطالب
-  const defaultImage = 'https://cdn.vuetifyjs.com/images/john.jpg'
-
-  // إذا لم يكن هناك مسار، استخدم الصورة الافتراضية
+// دالة مساعدة للتأكد من وجود صورة أو استخدام الحرف الأول من الاسم
+const getStudentImage = (imagePath, studentName = '') => {
+  // إذا لم يكن هناك مسار، استخدم null لعرض الحرف الأول من الاسم
   if (!imagePath) {
-    console.log('GradesView: لا يوجد مسار للصورة، استخدام الصورة الافتراضية')
-    return defaultImage
+    console.log('GradesView: لا يوجد مسار للصورة، سيتم استخدام الحرف الأول من الاسم')
+    return null
   }
 
   // إذا كان المسار يبدأ بـ http أو https
@@ -940,20 +930,17 @@ const getStudentImage = (imagePath) => {
   // التحقق من أن المسار لا يحتوي على أحرف غير صالحة
   if (imagePath.includes('undefined') || imagePath.includes('null')) {
     console.log('GradesView: مسار الصورة يحتوي على قيم غير صالحة:', imagePath)
-    return defaultImage
+    return null
   }
 
-  // إذا لم يتطابق المسار مع أي من الحالات السابقة، استخدم الصورة الافتراضية
-  console.log(`GradesView: مسار غير معروف: ${imagePath}، استخدام الصورة الافتراضية`)
-  return defaultImage
+  // إذا لم يتطابق المسار مع أي من الحالات السابقة، استخدم null لعرض الحرف الأول من الاسم
+  console.log(`GradesView: مسار غير معروف: ${imagePath}، سيتم استخدام الحرف الأول من الاسم`)
+  return null
 }
 
 // دالة للتعامل مع أخطاء تحميل الصور في الجدول
 const handleImageError = (item) => {
   console.error('GradesView: خطأ في تحميل صورة الطالب')
-
-  // الصورة الافتراضية
-  const defaultImage = 'https://cdn.vuetifyjs.com/images/john.jpg'
 
   try {
     // التحقق من وجود العنصر
@@ -962,9 +949,9 @@ const handleImageError = (item) => {
       return;
     }
 
-    // تعيين الصورة الافتراضية
-    item.image = defaultImage;
-    console.log('handleImageError: تم تعيين الصورة الافتراضية للطالب:', item.name || 'unknown');
+    // تعيين الصورة إلى null لعرض الحرف الأول من الاسم
+    item.image = null;
+    console.log('handleImageError: تم تعيين الصورة إلى null لعرض الحرف الأول للطالب:', item.name || 'unknown');
   } catch (error) {
     console.error('handleImageError: خطأ في معالجة خطأ الصورة:', error);
   }
@@ -974,15 +961,12 @@ const handleImageError = (item) => {
 const handleStudentDetailsImageError = () => {
   console.error('GradesView: خطأ في تحميل صورة الطالب في حوار التفاصيل')
 
-  // الصورة الافتراضية
-  const defaultImage = 'https://cdn.vuetifyjs.com/images/john.jpg'
-
   try {
     // التحقق من وجود الطالب المحدد
     if (selectedStudent.value) {
-      // تعيين الصورة الافتراضية
-      selectedStudent.value.image = defaultImage
-      console.log('handleStudentDetailsImageError: تم تعيين الصورة الافتراضية للطالب:', selectedStudent.value.name || 'unknown');
+      // تعيين الصورة إلى null لعرض الحرف الأول من الاسم
+      selectedStudent.value.image = null
+      console.log('handleStudentDetailsImageError: تم تعيين الصورة إلى null لعرض الحرف الأول للطالب:', selectedStudent.value.name || 'unknown');
     }
   } catch (error) {
     console.error('handleStudentDetailsImageError: خطأ في معالجة خطأ الصورة:', error);
