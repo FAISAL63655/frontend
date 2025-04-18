@@ -203,7 +203,13 @@
                   :alt="student.name"
                   cover
                   @error="student.image = 'https://cdn.vuetifyjs.com/images/john.jpg'"
-                ></v-img>
+                >
+                  <template v-slot:placeholder>
+                    <v-avatar size="80" color="primary">
+                      <span class="text-h4 text-white">{{ student.name.charAt(0) || 'ط' }}</span>
+                    </v-avatar>
+                  </template>
+                </v-img>
               </v-avatar>
             </div>
 
@@ -267,7 +273,13 @@
               :alt="getTableItemName(item)"
               cover
               @error="handleImageError(item)"
-            ></v-img>
+            >
+              <template v-slot:placeholder>
+                <v-avatar size="42" color="primary">
+                  <span class="text-h6 text-white">{{ getTableItemName(item).charAt(0) || 'ط' }}</span>
+                </v-avatar>
+              </template>
+            </v-img>
           </v-avatar>
         </template>
 
@@ -358,7 +370,13 @@
                     :alt="studentForm.name || 'صورة الطالب'"
                     cover
                     @error="studentForm.image = 'https://cdn.vuetifyjs.com/images/john.jpg'"
-                  ></v-img>
+                  >
+                    <template v-slot:placeholder>
+                      <v-avatar size="120" color="primary">
+                        <span class="text-h3 text-white">{{ studentForm.name ? studentForm.name.charAt(0) : 'ط' }}</span>
+                      </v-avatar>
+                    </template>
+                  </v-img>
                   <span v-else class="text-h3 text-white">{{ studentForm.name ? studentForm.name.charAt(0) : 'ط' }}</span>
                 </v-avatar>
 
@@ -482,7 +500,13 @@
               :alt="studentToDelete?.name || 'صورة الطالب'"
               cover
               @error="handleDeleteDialogImageError"
-            ></v-img>
+            >
+              <template v-slot:placeholder>
+                <v-avatar size="80" color="primary">
+                  <span class="text-h4 text-white">{{ studentToDelete?.name ? studentToDelete.name.charAt(0) : 'ط' }}</span>
+                </v-avatar>
+              </template>
+            </v-img>
           </v-avatar>
           <h3 class="text-h6 mb-3">{{ studentToDelete?.name }}</h3>
           <p class="text-body-1 mb-4">هل أنت متأكد من رغبتك في حذف هذا الطالب؟</p>
