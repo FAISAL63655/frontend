@@ -269,7 +269,7 @@
         <!-- Image Column -->
         <template #[`item.image`]="{ item }">
           <v-avatar size="40" class="elevation-1" style="border: 2px solid #f5f5f5;">
-            <v-img :src="getStudentImage(item.image)" :alt="item.name || 'Student'" cover></v-img>
+            <v-img :src="item.image" alt="Student" cover></v-img>
           </v-avatar>
         </template>
 
@@ -537,7 +537,7 @@
         <v-card-title class="d-flex flex-column align-start">
           <div class="d-flex align-center gap-2 mb-2">
             <v-avatar size="60" class="elevation-2">
-              <v-img :src="getStudentImage(selectedStudent?.image)" cover alt="صورة الطالب"></v-img>
+              <v-img :src="selectedStudent?.image" cover alt="صورة الطالب"></v-img>
             </v-avatar>
             <div>
               <h3 class="text-h5 font-weight-bold mb-1">{{ selectedStudent?.name }}</h3>
@@ -851,90 +851,8 @@ import NotificationHelper from '@/services/NotificationHelper'
 
 // دالة مساعدة للتأكد من وجود صورة أو استخدام صورة افتراضية
 const getStudentImage = (imagePath) => {
-  // الصورة الافتراضية للطالب
-  // استخدام صورة افتراضية من موقع موثوق
-  const defaultImage = 'https://cdn.vuetifyjs.com/images/john.jpg'
-
-  // إذا لم يكن هناك مسار، استخدم الصورة الافتراضية
-  if (!imagePath) {
-    console.log('GradesView: لا يوجد مسار للصورة، استخدام الصورة الافتراضية')
-    return defaultImage
-  }
-
-  // التحقق من أن المسار لا يحتوي على أحرف غير صالحة
-  if (imagePath.includes('undefined') || imagePath.includes('null')) {
-    console.log('GradesView: مسار الصورة يحتوي على قيم غير صالحة:', imagePath)
-    return defaultImage
-  }
-
-  // معالجة مشكلة الشرطة المزدوجة في المسار
-  if (typeof imagePath === 'string') {
-    // تحقق من وجود شرطة مزدوجة في المسار
-    if (imagePath.includes('//')) {
-      const originalPath = imagePath;
-      // إصلاح الشرطة المزدوجة بعد البروتوكول
-      if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
-        // الحفاظ على الشرطة المزدوجة بعد البروتوكول
-        const protocol = imagePath.startsWith('https://') ? 'https://' : 'http://';
-        const restOfUrl = imagePath.substring(protocol.length).replace(/\/+/g, '/');
-        imagePath = protocol + restOfUrl;
-      } else {
-        // إزالة الشرطة المزدوجة في المسارات الأخرى
-        imagePath = imagePath.replace(/\/+/g, '/');
-      }
-
-      // طباعة المسار بعد الإصلاح
-      console.log(`GradesView: تم إصلاح الشرطة المزدوجة من ${originalPath} إلى ${imagePath}`);
-    }
-  }
-
-  // إذا كان المسار يبدأ بـ http أو https
-  if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
-    // التحقق من أن المسار يشير إلى صورة موجودة
-    if (imagePath.includes('teachease-backend.onrender.com/media/')) {
-      // استخراج اسم الملف من المسار
-      const parts = imagePath.split('/')
-      const filename = parts[parts.length - 1]
-
-      // استخراج الجزء الأساسي من عنوان API
-      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || '/api/'
-      const baseUrl = apiBaseUrl.endsWith('/api/')
-        ? apiBaseUrl.slice(0, -4) // إزالة '/api'
-        : apiBaseUrl.endsWith('/api')
-          ? apiBaseUrl.slice(0, -3) // إزالة 'api'
-          : apiBaseUrl
-
-      // إنشاء مسار جديد باستخدام المجلد الصحيح
-      // التأكد من عدم وجود شرطة مزدوجة في المسار الجديد
-      let newUrl = '';
-      if (baseUrl.endsWith('/')) {
-        newUrl = `${baseUrl}media/students/${filename}`;
-      } else {
-        newUrl = `${baseUrl}/media/students/${filename}`;
-      }
-      console.log(`GradesView: تم تحويل مسار الصورة من ${imagePath} إلى ${newUrl}`)
-      return newUrl
-    }
-
-    // إذا كان المسار كاملاً ولكن ليس من الخادم الخاص بنا
-    return imagePath
-  }
-
-  // إذا كان المسار يبدأ بـ /media
-  if (imagePath.startsWith('/media/')) {
-    // استخدام دالة getFullImageUrl للحصول على المسار الكامل
-    return getFullImageUrl(imagePath)
-  }
-
-  // إذا كان المسار يبدأ بـ students/
-  if (imagePath.startsWith('students/')) {
-    // استخدام دالة getFullImageUrl للحصول على المسار الكامل
-    return getFullImageUrl(imagePath)
-  }
-
-  // إذا لم يتطابق المسار مع أي من الحالات السابقة، استخدم الصورة الافتراضية
-  console.log(`GradesView: مسار غير معروف: ${imagePath}، استخدام الصورة الافتراضية`)
-  return defaultImage
+  if (!imagePath) return 'https://cdn.vuetifyjs.com/images/john.jpg'
+  return getFullImageUrl(imagePath)
 }
 
 // متغيرات جديدة للتصميم
@@ -1188,18 +1106,8 @@ const fetchStudents = async () => {
 
     // إنشاء قائمة الطلاب مع الدرجات الافتراضية
     const studentsWithGrades = response.data.map(student => {
-      // التعامل مع الصورة بشكل صحيح
-      let imageUrl = 'https://cdn.vuetifyjs.com/images/john.jpg';
-      if (student.image) {
-        // استخدام image_url إذا كانت موجودة (من الخادم)
-        if (student.image_url) {
-          imageUrl = getStudentImage(student.image_url);
-        } else {
-          // استخدام دالة getStudentImage للحصول على المسار الكامل
-          imageUrl = getStudentImage(student.image);
-        }
-      }
-      console.log(`GradesView: صورة الطالب ${student.name}:`, student.image, ' -> ', imageUrl);
+      const imageUrl = student.image ? getStudentImage(student.image) : 'https://cdn.vuetifyjs.com/images/john.jpg';
+      console.log(`صورة الطالب ${student.name}:`, student.image, ' -> ', imageUrl);
 
       return {
         id: student.id,

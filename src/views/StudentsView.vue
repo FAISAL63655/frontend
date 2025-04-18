@@ -198,18 +198,7 @@
 
             <div class="student-avatar-container">
               <v-avatar size="80" class="student-avatar">
-                <v-img
-                  :src="student.image"
-                  :alt="student.name"
-                  cover
-                  @error="student.image = 'https://cdn.vuetifyjs.com/images/john.jpg'"
-                >
-                  <template v-slot:placeholder>
-                    <v-avatar size="80" color="primary">
-                      <span class="text-h4 text-white">{{ student.name.charAt(0) || 'ط' }}</span>
-                    </v-avatar>
-                  </template>
-                </v-img>
+                <v-img :src="student.image" :alt="student.name" cover></v-img>
               </v-avatar>
             </div>
 
@@ -268,18 +257,7 @@
         <!-- Image Column -->
         <template v-slot:item.image="{ item }">
           <v-avatar size="42" class="elevation-1">
-            <v-img
-              :src="getTableItemImage(item)"
-              :alt="getTableItemName(item)"
-              cover
-              @error="handleImageError(item)"
-            >
-              <template v-slot:placeholder>
-                <v-avatar size="42" color="primary">
-                  <span class="text-h6 text-white">{{ getTableItemName(item).charAt(0) || 'ط' }}</span>
-                </v-avatar>
-              </template>
-            </v-img>
+            <v-img :src="getTableItemImage(item)" :alt="getTableItemName(item)" cover></v-img>
           </v-avatar>
         </template>
 
@@ -364,19 +342,7 @@
             <v-row justify="center">
               <v-col cols="12" class="text-center">
                 <v-avatar size="120" color="primary" class="mb-4 elevation-2">
-                  <v-img
-                    v-if="studentForm.image"
-                    :src="studentForm.image"
-                    :alt="studentForm.name || 'صورة الطالب'"
-                    cover
-                    @error="studentForm.image = 'https://cdn.vuetifyjs.com/images/john.jpg'"
-                  >
-                    <template v-slot:placeholder>
-                      <v-avatar size="120" color="primary">
-                        <span class="text-h3 text-white">{{ studentForm.name ? studentForm.name.charAt(0) : 'ط' }}</span>
-                      </v-avatar>
-                    </template>
-                  </v-img>
+                  <v-img v-if="studentForm.image" :src="studentForm.image" :alt="studentForm.name || 'صورة الطالب'" cover></v-img>
                   <span v-else class="text-h3 text-white">{{ studentForm.name ? studentForm.name.charAt(0) : 'ط' }}</span>
                 </v-avatar>
 
@@ -499,14 +465,7 @@
               :src="studentToDelete?.image || 'https://cdn.vuetifyjs.com/images/john.jpg'"
               :alt="studentToDelete?.name || 'صورة الطالب'"
               cover
-              @error="handleDeleteDialogImageError"
-            >
-              <template v-slot:placeholder>
-                <v-avatar size="80" color="primary">
-                  <span class="text-h4 text-white">{{ studentToDelete?.name ? studentToDelete.name.charAt(0) : 'ط' }}</span>
-                </v-avatar>
-              </template>
-            </v-img>
+            ></v-img>
           </v-avatar>
           <h3 class="text-h6 mb-3">{{ studentToDelete?.name }}</h3>
           <p class="text-body-1 mb-4">هل أنت متأكد من رغبتك في حذف هذا الطالب؟</p>
@@ -587,40 +546,12 @@ const filteredStudents = computed(() => {
 // دالة مساعدة للتأكد من وجود صورة أو استخدام صورة افتراضية
 const getStudentImage = (imagePath) => {
   // الصورة الافتراضية للطالب
-  // استخدام صورة افتراضية من موقع موثوق
   const defaultImage = 'https://cdn.vuetifyjs.com/images/john.jpg'
 
   // إذا لم يكن هناك مسار، استخدم الصورة الافتراضية
   if (!imagePath) {
-    console.log('StudentsView: لا يوجد مسار للصورة، استخدام الصورة الافتراضية')
+    console.log('لا يوجد مسار للصورة، استخدام الصورة الافتراضية')
     return defaultImage
-  }
-
-  // التحقق من أن المسار لا يحتوي على أحرف غير صالحة
-  if (imagePath.includes('undefined') || imagePath.includes('null')) {
-    console.log('StudentsView: مسار الصورة يحتوي على قيم غير صالحة:', imagePath)
-    return defaultImage
-  }
-
-  // معالجة مشكلة الشرطة المزدوجة في المسار
-  if (typeof imagePath === 'string') {
-    // تحقق من وجود شرطة مزدوجة في المسار
-    if (imagePath.includes('//')) {
-      const originalPath = imagePath;
-      // إصلاح الشرطة المزدوجة بعد البروتوكول
-      if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
-        // الحفاظ على الشرطة المزدوجة بعد البروتوكول
-        const protocol = imagePath.startsWith('https://') ? 'https://' : 'http://';
-        const restOfUrl = imagePath.substring(protocol.length).replace(/\/+/g, '/');
-        imagePath = protocol + restOfUrl;
-      } else {
-        // إزالة الشرطة المزدوجة في المسارات الأخرى
-        imagePath = imagePath.replace(/\/+/g, '/');
-      }
-
-      // طباعة المسار بعد الإصلاح
-      console.log(`StudentsView: تم إصلاح الشرطة المزدوجة من ${originalPath} إلى ${imagePath}`);
-    }
   }
 
   // إذا كان المسار يبدأ بـ http أو https
@@ -640,14 +571,8 @@ const getStudentImage = (imagePath) => {
           : apiBaseUrl
 
       // إنشاء مسار جديد باستخدام المجلد الصحيح
-      // التأكد من عدم وجود شرطة مزدوجة في المسار الجديد
-      let newUrl = '';
-      if (baseUrl.endsWith('/')) {
-        newUrl = `${baseUrl}media/students/${filename}`;
-      } else {
-        newUrl = `${baseUrl}/media/students/${filename}`;
-      }
-      console.log(`StudentsView: تم تحويل مسار الصورة من ${imagePath} إلى ${newUrl}`)
+      const newUrl = `${baseUrl}/media/students/${filename}`
+      console.log(`تم تحويل مسار الصورة من ${imagePath} إلى ${newUrl}`)
       return newUrl
     }
 
@@ -668,7 +593,7 @@ const getStudentImage = (imagePath) => {
   }
 
   // إذا لم يتطابق المسار مع أي من الحالات السابقة، استخدم الصورة الافتراضية
-  console.log(`StudentsView: مسار غير معروف: ${imagePath}، استخدام الصورة الافتراضية`)
+  console.log(`مسار غير معروف: ${imagePath}، استخدام الصورة الافتراضية`)
   return defaultImage
 }
 
@@ -747,62 +672,6 @@ const resetImageToDefault = () => {
     studentForm.value.image = 'https://cdn.vuetifyjs.com/images/john.jpg'
   }
 }
-
-// دالة للتعامل مع أخطاء تحميل الصور في الجدول
-const handleImageError = (item) => {
-  console.error('StudentsView: خطأ في تحميل صورة الطالب')
-
-  // الصورة الافتراضية
-  const defaultImage = 'https://cdn.vuetifyjs.com/images/john.jpg'
-
-  try {
-    // التحقق من وجود العنصر
-    if (!item) {
-      console.log('handleImageError: العنصر غير موجود');
-      return;
-    }
-
-    // الحصول على الطالب من القائمة
-    let student = null;
-
-    if (typeof item === 'object') {
-      if (item.raw) {
-        student = item.raw;
-      } else {
-        student = item;
-      }
-    }
-
-    // تعيين الصورة الافتراضية
-    if (student) {
-      student.image = defaultImage;
-      console.log('handleImageError: تم تعيين الصورة الافتراضية للطالب:', student.name || 'unknown');
-    }
-  } catch (error) {
-    console.error('handleImageError: خطأ في معالجة خطأ الصورة:', error);
-  }
-}
-
-// دالة للتعامل مع أخطاء تحميل الصور في حوار الحذف
-const handleDeleteDialogImageError = () => {
-  console.error('StudentsView: خطأ في تحميل صورة الطالب في حوار الحذف')
-
-  // الصورة الافتراضية
-  const defaultImage = 'https://cdn.vuetifyjs.com/images/john.jpg'
-
-  try {
-    // التحقق من وجود الطالب المراد حذفه
-    if (studentToDelete.value) {
-      // تعيين الصورة الافتراضية
-      studentToDelete.value.image = defaultImage
-      console.log('handleDeleteDialogImageError: تم تعيين الصورة الافتراضية للطالب:', studentToDelete.value.name || 'unknown');
-    }
-  } catch (error) {
-    console.error('handleDeleteDialogImageError: خطأ في معالجة خطأ الصورة:', error);
-  }
-}
-
-// الدوال المساعدة للجدول معرفة في نهاية الملف
 
 // الحصول على مخزن التخزين المؤقت
 const cacheStore = useSimpleCacheStore()
@@ -900,21 +769,14 @@ const fetchStudents = async () => {
 
       // التعامل مع الصورة بشكل صحيح
       let imageUrl = 'https://cdn.vuetifyjs.com/images/john.jpg';
-      try {
+      if (student.image) {
+        // استخدام image_url إذا كانت موجودة (من الخادم)
         if (student.image_url) {
-          // استخدام image_url إذا كانت موجودة (من الخادم)
-          // إصلاح الشرطة المزدوجة في المسار
-          let fixedUrl = student.image_url;
-          if (typeof fixedUrl === 'string' && fixedUrl.includes('//')) {
-            fixedUrl = fixedUrl.replace(/([^:])\/{2,}/g, '$1/');
-          }
-          imageUrl = fixedUrl;
-        } else if (student.image) {
+          imageUrl = student.image_url;
+        } else {
           // استخدام دالة getStudentImage للحصول على المسار الكامل
           imageUrl = getStudentImage(student.image);
         }
-      } catch (error) {
-        console.error(`خطأ في معالجة صورة الطالب ${student.name}:`, error);
       }
       console.log(`صورة الطالب ${student.name}:`, student.image, ' -> ', imageUrl);
 
@@ -1342,99 +1204,46 @@ watch(studentForm, (newValue) => {
 
 // إضافة دالة مساعدة للحصول على صورة من عنصر الجدول
 const getTableItemImage = (item) => {
-  // الصورة الافتراضية
-  const defaultImage = 'https://cdn.vuetifyjs.com/images/john.jpg';
-
-  // التحقق من وجود العنصر
-  if (!item) {
-    console.log('getTableItemImage: العنصر غير موجود');
-    return defaultImage;
-  }
-
   // v-data-table في Vuetify 3 يمكن أن تكون بنية العنصر مختلفة
   let imagePath = null;
-  let student = null;
-
-  try {
-    if (typeof item === 'object') {
-      if (item.raw) {
-        student = item.raw;
-        imagePath = student.image;
-      } else if (item.columns && item.columns.image) {
-        imagePath = item.columns.image.value;
-      } else if (item.image) {
-        student = item;
-        imagePath = item.image;
-      }
+  if (typeof item === 'object') {
+    if (item.raw) {
+      imagePath = item.raw.image;
+    } else if (item.columns && item.columns.image) {
+      imagePath = item.columns.image.value;
+    } else if (item.image) {
+      imagePath = item.image;
     }
-
-    // التحقق من وجود مسار صورة صالح
-    if (!imagePath || typeof imagePath !== 'string' || imagePath.includes('undefined') || imagePath.includes('null')) {
-      // إذا لم يكن هناك مسار صورة صالح، استخدم الصورة الافتراضية
-
-      // تحديث الصورة في الكائن الأصلي إذا كان موجودًا
-      if (student) {
-        student.image = defaultImage;
-      }
-
-      return defaultImage;
-    }
-
-    return getStudentImage(imagePath);
-  } catch (error) {
-    console.error('getTableItemImage: خطأ في الحصول على صورة الطالب:', error);
-    return defaultImage;
   }
+  return getStudentImage(imagePath);
 }
 
 // دالة مساعدة للحصول على حالة العنصر
 const getTableItemStatus = (item) => {
-  // التحقق من وجود العنصر
-  if (!item) {
-    console.log('getTableItemStatus: العنصر غير موجود');
-    return 'active';
-  }
-
-  try {
-    if (typeof item === 'object') {
-      if (item.raw) {
-        return item.raw.status || 'active'
-      } else if (item.columns && item.columns.status) {
-        return item.columns.status.value || 'active'
-      } else if (item.status) {
-        return item.status
-      }
+  if (typeof item === 'object') {
+    if (item.raw) {
+      return item.raw.status || 'active'
+    } else if (item.columns && item.columns.status) {
+      return item.columns.status.value || 'active'
+    } else if (item.status) {
+      return item.status
     }
-    return 'active'
-  } catch (error) {
-    console.error('getTableItemStatus: خطأ في الحصول على حالة الطالب:', error);
-    return 'active';
   }
+  return 'active'
 }
 
 // دالة مساعدة إضافية للحصول على اسم الطالب من عنصر الجدول
 const getTableItemName = (item) => {
-  // التحقق من وجود العنصر
-  if (!item) {
-    console.log('getTableItemName: العنصر غير موجود');
-    return '';
-  }
-
-  try {
-    if (typeof item === 'object') {
-      if (item.raw) {
-        return item.raw.name || ''
-      } else if (item.columns && item.columns.name) {
-        return item.columns.name.value || ''
-      } else if (item.name) {
-        return item.name
-      }
+  if (typeof item === 'object') {
+    if (item.raw) {
+      return item.raw.name || ''
+    } else if (item.columns && item.columns.name) {
+      return item.columns.name.value || ''
+    } else if (item.name) {
+      return item.name
     }
-    return ''
-  } catch (error) {
-    console.error('getTableItemName: خطأ في الحصول على اسم الطالب:', error);
-    return '';
   }
+  return ''
 }
 </script>
 
