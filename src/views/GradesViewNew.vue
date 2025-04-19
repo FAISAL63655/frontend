@@ -1657,11 +1657,13 @@ const saveStudentDetails = async () => {
 
     try {
       // تحضير بيانات الدرجات
+      // ملاحظة: نستخدم فقط الأنواع المسموح بها في الباك اند
+      // الأنواع المسموح بها: theory, practical, participation, quran, final
       const gradeTypes = [
         { type: 'theory', score: parseInt(studentDetailsDialog.value.student.theory) || 0, max_score: 15 },
         { type: 'practical', score: parseInt(studentDetailsDialog.value.student.practical) || 0, max_score: 5 },
-        { type: 'homework', score: parseInt(studentDetailsDialog.value.student.homework) || 0, max_score: 10 },
-        { type: 'participation', score: parseInt(studentDetailsDialog.value.student.participation) || 0, max_score: 10 },
+        // نضيف درجة الواجبات إلى درجة المشاركة لأن الباك اند لا يدعم نوع 'homework'
+        { type: 'participation', score: (parseInt(studentDetailsDialog.value.student.participation) || 0) + (parseInt(studentDetailsDialog.value.student.homework) || 0), max_score: 10 },
         { type: 'quran', score: parseInt(studentDetailsDialog.value.student.quran) || 0, max_score: 20 },
         { type: 'final', score: parseInt(studentDetailsDialog.value.student.final) || 0, max_score: 40 }
       ]

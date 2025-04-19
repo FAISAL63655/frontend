@@ -375,9 +375,11 @@ export const useGradesStore = defineStore('grades', () => {
         throw new Error('Missing required fields for grade')
       }
 
-      // التأكد من وجود حقل type
-      if (!gradeData.type) {
-        // إذا لم يكن موجوداً، نستخدم القيمة 'theory' كقيمة افتراضية
+      // التأكد من وجود حقل type وأنه من القيم المسموح بها
+      const validTypes = ['theory', 'practical', 'participation', 'quran', 'final']
+      if (!gradeData.type || !validTypes.includes(gradeData.type)) {
+        // إذا لم يكن موجوداً أو غير صحيح، نستخدم القيمة 'theory' كقيمة افتراضية
+        console.warn(`Invalid grade type: ${gradeData.type}, using 'theory' instead`)
         gradeData.type = 'theory'
       }
 
@@ -652,11 +654,13 @@ export const useGradesStore = defineStore('grades', () => {
       const results = []
       for (const gradeData of gradesDataArray) {
         // حفظ كل نوع من الدرجات على حدة
+        // ملاحظة: نستخدم فقط الأنواع المسموح بها في الباك اند
+        // الأنواع المسموح بها: theory, practical, participation, quran, final
         const gradeTypes = [
           { type: 'theory', score: gradeData.theory || 0 },
           { type: 'practical', score: gradeData.practical || 0 },
-          { type: 'homework', score: gradeData.homework || 0 },
-          { type: 'participation', score: gradeData.participation || 0 },
+          // نضيف درجة الواجبات إلى درجة المشاركة لأن الباك اند لا يدعم نوع 'homework'
+          { type: 'participation', score: (gradeData.participation || 0) + (gradeData.homework || 0) },
           { type: 'quran', score: gradeData.quran || 0 },
           { type: 'final', score: gradeData.final || 0 }
         ]
