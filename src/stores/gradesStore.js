@@ -643,23 +643,93 @@ export const useGradesStore = defineStore('grades', () => {
     }
   }
 
-  // دالة حفظ مجموعة من الدرجات دفعة واحدة
+  /**
+   * دالة حفظ مجموعة من الدرجات دفعة واحدة
+   *
+   * تستخدم هذه الدالة نقطة نهاية API المجمعة لحفظ مجموعة من الدرجات في طلب واحد
+   * مما يحسن الأداء ويقلل من عدد الطلبات المرسلة إلى الخادم
+   *
+   * @param {Array} gradesDataArray - مصفوفة من بيانات الدرجات
+   * @returns {Promise<Array>} - وعد بمصفوفة من الدرجات المحفوظة
+   */
   const saveBatchGrades = async (gradesDataArray) => {
     try {
       console.log('Saving batch grades:', gradesDataArray)
 
-      // استخدام الحفظ الفردي فقط
-      console.log('Using individual grade saves')
+      // تحويل بيانات الدرجات إلى التنسيق المطلوب للباك اند
+      const formattedGrades = []
+
+      for (const gradeData of gradesDataArray) {
+        // إضافة كل نوع من أنواع الدرجات كسجل منفصل
+        const gradeTypes = [
+          { type: 'theory', score: gradeData.theory || 0, max_score: 15 },
+          { type: 'practical', score: gradeData.practical || 0, max_score: 5 },
+          { type: 'participation', score: (gradeData.participation || 0) + (gradeData.homework || 0), max_score: 10 },
+          { type: 'quran', score: gradeData.quran || 0, max_score: 20 },
+          { type: 'final', score: gradeData.final || 0, max_score: 40 }
+        ]
+
+        for (const gradeType of gradeTypes) {
+          formattedGrades.push({
+            student: gradeData.student,
+            subject: gradeData.subject,
+            date: gradeData.date,
+            type: gradeType.type,
+            score: gradeType.score,
+            max_score: gradeType.max_score
+          })
+        }
+      }
+
+      console.log('Using new batch API endpoint')
+      console.log('Formatted grades:', formattedGrades)
+
+      // استخدام نقطة النهاية المجمعة الجديدة
+      const response = await api.post('grades/batch-create/', {
+        grades: formattedGrades
+      })
+
+      console.log('Batch save response:', response.data)
+
+      // تحديث الكاش
+      if (response.data && response.data.results) {
+        for (const grade of response.data.results) {
+          if (!grades.value[grade.student]) {
+            grades.value[grade.student] = []
+          }
+
+          // البحث عن درجة موجودة في الكاش وتحديثها
+          const existingIndex = grades.value[grade.student].findIndex(g =>
+            g.id === grade.id ||
+            (g.type === grade.type && g.subject === grade.subject && g.date === grade.date)
+          )
+
+          if (existingIndex !== -1) {
+            grades.value[grade.student][existingIndex] = grade
+          } else {
+            grades.value[grade.student].push(grade)
+          }
+        }
+      }
+
+      // إذا كانت هناك أخطاء، نسجلها في وحدة التحكم
+      if (response.data && response.data.errors && response.data.errors.length > 0) {
+        console.warn('Some grades could not be saved:', response.data.errors)
+      }
+
+      // إرجاع النتائج
+      return response.data.results || []
+    } catch (error) {
+      console.error('Error saving batch grades:', error)
+
+      // في حالة فشل الطلب المجمع، نستخدم الطريقة القديمة كخطة بديلة
+      console.log('Falling back to individual grade saves')
 
       const results = []
       for (const gradeData of gradesDataArray) {
-        // حفظ كل نوع من الدرجات على حدة
-        // ملاحظة: نستخدم فقط الأنواع المسموح بها في الباك اند
-        // الأنواع المسموح بها: theory, practical, participation, quran, final
         const gradeTypes = [
           { type: 'theory', score: gradeData.theory || 0 },
           { type: 'practical', score: gradeData.practical || 0 },
-          // نضيف درجة الواجبات إلى درجة المشاركة لأن الباك اند لا يدعم نوع 'homework'
           { type: 'participation', score: (gradeData.participation || 0) + (gradeData.homework || 0) },
           { type: 'quran', score: gradeData.quran || 0 },
           { type: 'final', score: gradeData.final || 0 }
@@ -673,7 +743,6 @@ export const useGradesStore = defineStore('grades', () => {
               date: gradeData.date,
               type: gradeType.type,
               score: gradeType.score
-              // max_score سيتم تعيينه تلقائياً في دالة saveGrade
             }
 
             const result = await saveGrade(singleGradeData)
@@ -685,19 +754,58 @@ export const useGradesStore = defineStore('grades', () => {
       }
 
       return results
-    } catch (error) {
-      console.error('Error saving batch grades:', error)
-      throw error
     }
   }
 
-  // دالة حفظ مجموعة من سجلات الحضور دفعة واحدة
+  /**
+   * دالة حفظ مجموعة من سجلات الحضور دفعة واحدة
+   *
+   * تستخدم هذه الدالة نقطة نهاية API المجمعة لحفظ مجموعة من سجلات الحضور في طلب واحد
+   * مما يحسن الأداء ويقلل من عدد الطلبات المرسلة إلى الخادم
+   *
+   * @param {Array} attendanceDataArray - مصفوفة من بيانات الحضور
+   * @returns {Promise<Array>} - وعد بمصفوفة من سجلات الحضور المحفوظة
+   */
   const saveBatchAttendance = async (attendanceDataArray) => {
     try {
       console.log('Saving batch attendance:', attendanceDataArray)
 
-      // استخدام الحفظ الفردي فقط
-      console.log('Using individual attendance saves')
+      // تحويل بيانات الحضور إلى التنسيق المطلوب للباك اند
+      const formattedAttendance = attendanceDataArray.map(record => {
+        // التأكد من وجود حقل schedule
+        return !record.schedule ? { ...record, schedule: 1 } : record
+      })
+
+      console.log('Using new batch API endpoint')
+      console.log('Formatted attendance:', formattedAttendance)
+
+      // استخدام نقطة النهاية المجمعة الجديدة
+      const response = await api.post('attendances/batch-create/', {
+        attendance: formattedAttendance
+      })
+
+      console.log('Batch save response:', response.data)
+
+      // تحديث الكاش
+      if (response.data && response.data.results) {
+        for (const record of response.data.results) {
+          const key = `${record.student}-${record.date}`
+          attendance.value[key] = record
+        }
+      }
+
+      // إذا كانت هناك أخطاء، نسجلها في وحدة التحكم
+      if (response.data && response.data.errors && response.data.errors.length > 0) {
+        console.warn('Some attendance records could not be saved:', response.data.errors)
+      }
+
+      // إرجاع النتائج
+      return response.data.results || []
+    } catch (error) {
+      console.error('Error saving batch attendance:', error)
+
+      // في حالة فشل الطلب المجمع، نستخدم الطريقة القديمة كخطة بديلة
+      console.log('Falling back to individual attendance saves')
 
       const results = []
       for (const attendanceData of attendanceDataArray) {
@@ -715,9 +823,6 @@ export const useGradesStore = defineStore('grades', () => {
       }
 
       return results
-    } catch (error) {
-      console.error('Error saving batch attendance:', error)
-      throw error
     }
   }
 
