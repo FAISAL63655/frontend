@@ -1,28 +1,28 @@
 <template>
   <div class="grades-page" dir="rtl">
     <!-- جزء البطاقة الرئيسية العلوية -->
-    <v-card class="grades-header-card mb-4 elevation-3 rounded-lg">
+    <v-card class="grades-header-card mb-4 elevation-2">
       <!-- عنوان الصفحة والفلاتر -->
-      <v-toolbar color="primary" flat class="px-3 rounded-t-lg">
+      <v-toolbar color="primary" flat class="px-2 rounded-t">
         <v-toolbar-title class="text-white d-flex align-center">
           <v-icon size="large" class="ms-2">mdi-clipboard-text-outline</v-icon>
           <span class="text-h5 font-weight-bold">صفحة الدرجات</span>
         </v-toolbar-title>
         <v-spacer></v-spacer>
 
-        <v-btn variant="tonal" color="white" prepend-icon="mdi-filter-variant" class="ms-2 elevation-1" @click="showFilters = !showFilters">
+        <v-btn variant="tonal" color="white" prepend-icon="mdi-filter-variant" class="ms-2" @click="showFilters = !showFilters">
           الفلاتر
           <v-icon end>{{ showFilters ? 'mdi-chevron-up' : 'mdi-chevron-down' }}</v-icon>
         </v-btn>
 
-        <v-btn color="white" variant="tonal" prepend-icon="mdi-plus" class="elevation-1" @click="showAddAssignmentDialog = true">
+        <v-btn color="white" variant="tonal" prepend-icon="mdi-plus" @click="showAddAssignmentDialog = true">
           إضافة واجب
         </v-btn>
       </v-toolbar>
 
       <!-- قسم الفلاتر -->
       <v-expand-transition>
-        <div v-if="showFilters" class="pa-4 bg-primary-lighten-5 border-b">
+        <div v-if="showFilters" class="pa-4 bg-primary-lighten-5">
           <v-row align="center">
             <v-col cols="12" sm="6" md="3">
               <v-select
@@ -36,8 +36,7 @@
                 prepend-inner-icon="mdi-school"
                 hide-details
                 bg-color="white"
-                class="rounded-lg filter-select elevation-1"
-                menu-icon="mdi-chevron-down"
+                class="rounded-lg"
               ></v-select>
             </v-col>
             <v-col cols="12" sm="6" md="3">
@@ -52,8 +51,7 @@
                 prepend-inner-icon="mdi-home"
                 hide-details
                 bg-color="white"
-                class="rounded-lg filter-select elevation-1"
-                menu-icon="mdi-chevron-down"
+                class="rounded-lg"
               ></v-select>
             </v-col>
             <v-col cols="12" sm="6" md="3">
@@ -68,8 +66,7 @@
                 prepend-inner-icon="mdi-book-open-variant"
                 hide-details
                 bg-color="white"
-                class="rounded-lg filter-select elevation-1"
-                menu-icon="mdi-chevron-down"
+                class="rounded-lg"
               ></v-select>
             </v-col>
             <v-col cols="12" sm="6" md="3">
@@ -82,7 +79,7 @@
                 prepend-inner-icon="mdi-calendar"
                 hide-details
                 bg-color="white"
-                class="rounded-lg filter-select elevation-1"
+                class="rounded-lg"
                 @update:model-value="dateChanged"
               ></v-text-field>
             </v-col>
@@ -91,14 +88,14 @@
       </v-expand-transition>
 
       <!-- معلومات التاريخ والفترة -->
-      <v-card-text class="pa-4 bg-grey-lighten-5">
+      <v-card-text class="pa-4" :class="{'bg-grey-lighten-5': !$vuetify.theme.dark, 'bg-grey-darken-4': $vuetify.theme.dark}">
         <v-row>
           <v-col cols="12" md="6">
             <div class="d-flex align-center">
-              <v-chip class="ma-2" color="info" prepend-icon="mdi-calendar" elevation="2" size="large">
+              <v-chip class="ma-2" color="info" prepend-icon="mdi-calendar" elevation="1">
                 {{ currentDate }}
               </v-chip>
-              <v-chip class="ma-2" color="success" prepend-icon="mdi-clock-outline" elevation="2" size="large">
+              <v-chip class="ma-2" color="success" prepend-icon="mdi-clock-outline" elevation="1">
                 {{ currentPeriod }}
               </v-chip>
             </div>
@@ -108,29 +105,28 @@
         <!-- قسم قائمة الواجبات -->
         <v-row v-if="assignments.length > 0">
           <v-col cols="12">
-            <v-card class="assignment-selector-card rounded-lg elevation-2">
-              <v-toolbar density="compact" color="blue-lighten-4" class="rounded-t-lg">
+            <v-card class="assignment-selector-card rounded-lg">
+              <v-toolbar density="compact" :color="$vuetify.theme.dark ? 'blue-darken-4' : 'blue-lighten-4'" class="rounded-t-lg">
                 <v-toolbar-title class="d-flex align-center">
-                  <v-icon start class="me-2">mdi-bookshelf</v-icon>
-                  <span class="font-weight-medium">الواجبات ({{ assignments.length }})</span>
+                  <v-icon start>mdi-bookshelf</v-icon>
+                  <span>الواجبات ({{ assignments.length }})</span>
                 </v-toolbar-title>
                 <v-spacer></v-spacer>
                 <v-btn
                   color="primary"
-                  variant="tonal"
+                  variant="text"
                   size="small"
-                  class="elevation-1"
                   @click="showAssignmentsSelector = !showAssignmentsSelector"
                 >
-                  <v-icon start>{{ showAssignmentsSelector ? 'mdi-chevron-up' : 'mdi-chevron-down' }}</v-icon>
+                  <v-icon>{{ showAssignmentsSelector ? 'mdi-chevron-up' : 'mdi-chevron-down' }}</v-icon>
                   {{ showAssignmentsSelector ? 'إغلاق القائمة' : 'عرض القائمة' }}
                 </v-btn>
               </v-toolbar>
 
               <!-- قائمة الواجبات المحسنة -->
               <v-expand-transition>
-                <div v-if="showAssignmentsSelector" class="pa-3 bg-grey-lighten-5">
-                  <v-list class="assignment-list rounded-lg">
+                <div v-if="showAssignmentsSelector" class="pa-3" :class="{'bg-grey-lighten-5': !$vuetify.theme.dark, 'bg-grey-darken-4': $vuetify.theme.dark}">
+                  <v-list class="assignment-list">
                     <v-list-item
                       v-for="assignment in assignments"
                       :key="assignment.id"
@@ -138,11 +134,10 @@
                       @click="setActiveAssignment(assignment)"
                       :rounded="true"
                       :border="currentAssignment && currentAssignment.id === assignment.id"
-                      class="mb-2 elevation-1"
-                      :class="{'bg-blue-lighten-5': currentAssignment && currentAssignment.id === assignment.id}"
+                      class="mb-1"
                     >
                       <template #prepend>
-                        <v-avatar size="36" color="primary" class="ms-2 elevation-1">
+                        <v-avatar size="32" color="primary" class="ms-2">
                           <v-icon color="white">mdi-book-education</v-icon>
                         </v-avatar>
                       </template>
@@ -150,7 +145,7 @@
                         {{ assignment.title }}
                       </v-list-item-title>
                       <template #append>
-                        <v-chip size="small" variant="elevated" :color="isAssignmentDueSoon && currentAssignment && currentAssignment.id === assignment.id ? 'error' : 'success'" class="elevation-1">
+                        <v-chip size="small" variant="elevated" :color="isAssignmentDueSoon && currentAssignment && currentAssignment.id === assignment.id ? 'error' : 'success'">
                           {{ formatDate(assignment.due_date) }}
                         </v-chip>
                       </template>
@@ -165,31 +160,30 @@
         <!-- قسم معلومات الواجب الحالي المحسن -->
         <v-row v-if="currentAssignment">
           <v-col cols="12">
-            <v-card variant="elevated" class="assignment-details-card elevation-3 rounded-lg">
+            <v-card variant="elevated" class="assignment-details-card">
               <v-banner
                 color="warning"
                 icon="mdi-book-alert"
                 lines="three"
                 sticky
-                class="rounded-t-lg"
               >
                 <v-banner-text>
                   <div class="d-flex flex-column">
                     <div class="text-h6 font-weight-bold mb-1">{{ currentAssignment.title }}</div>
-                    <div v-if="currentAssignment.description" class="text-body-2 mb-2 description-box pa-2 rounded bg-grey-lighten-4">
+                    <div v-if="currentAssignment.description" class="text-body-2 mb-2">
                       {{ currentAssignment.description }}
                     </div>
-                    <div class="d-flex flex-wrap gap-2 mt-2">
-                      <v-chip size="small" color="primary" class="ms-2" variant="outlined" elevation="1">
-                        <v-icon start size="small">mdi-calendar-plus</v-icon>
+                    <div class="d-flex flex-wrap gap-2 mt-1">
+                      <v-chip size="small" color="primary" class="ms-2" variant="outlined">
+                        <v-icon start size="x-small">mdi-calendar-plus</v-icon>
                         تاريخ الإضافة: {{ formatDate(currentAssignment.created_at) }}
                       </v-chip>
-                      <v-chip size="small" :color="isAssignmentDueSoon ? 'error' : 'success'" class="ms-2" variant="outlined" elevation="1">
-                        <v-icon start size="small">mdi-calendar-clock</v-icon>
+                      <v-chip size="small" :color="isAssignmentDueSoon ? 'error' : 'success'" class="ms-2" variant="outlined">
+                        <v-icon start size="x-small">mdi-calendar-clock</v-icon>
                         تاريخ التسليم: {{ formatDate(currentAssignment.due_date) }}
                       </v-chip>
-                      <v-chip size="small" color="info" variant="outlined" elevation="1">
-                        <v-icon start size="small">mdi-star</v-icon>
+                      <v-chip size="small" color="info" variant="outlined">
+                        <v-icon start size="x-small">mdi-star</v-icon>
                         الدرجة: {{ currentAssignment.score }}
                       </v-chip>
                     </div>
@@ -202,7 +196,6 @@
                       variant="tonal"
                       size="small"
                       icon="mdi-delete"
-                      class="elevation-1"
                       @click="deleteCurrentAssignment"
                     ></v-btn>
                     <v-btn
@@ -210,7 +203,6 @@
                       variant="tonal"
                       size="small"
                       icon="mdi-pencil"
-                      class="elevation-1"
                       @click="showEditAssignmentDialog = true"
                     ></v-btn>
                     <v-badge
@@ -223,7 +215,6 @@
                         variant="elevated"
                         size="small"
                         prepend-icon="mdi-check-all"
-                        class="elevation-2"
                         @click="markAllSubmitted"
                       >
                         تم تسليم الجميع
@@ -239,14 +230,12 @@
     </v-card>
 
     <!-- جدول الطلاب المحسن -->
-    <v-card class="student-grades-table-card elevation-3 rounded-lg mt-6">
-      <v-toolbar color="blue-lighten-5" density="compact" class="rounded-t-lg">
+    <v-card class="student-grades-table-card elevation-2">
+      <v-toolbar :color="$vuetify.theme.dark ? 'blue-darken-4' : 'blue-lighten-5'" density="compact" class="rounded-t-lg">
         <v-toolbar-title>
           <div class="d-flex align-center">
-            <v-icon start class="me-2" size="large" color="primary">
-              mdi-account-group
-            </v-icon>
-            <span class="font-weight-medium">قائمة الطلاب</span>
+            <v-icon start class="me-2">mdi-account-group</v-icon>
+            <span>قائمة الطلاب</span>
           </div>
         </v-toolbar-title>
 
@@ -259,10 +248,9 @@
           single-line
           hide-details
           density="compact"
-          bg-color="white"
-          class="mx-2 elevation-1 rounded-pill"
+          :bg-color="$vuetify.theme.dark ? 'grey-darken-3' : 'white'"
+          class="mx-2"
           style="max-width: 250px;"
-          variant="solo"
         ></v-text-field>
       </v-toolbar>
 
@@ -282,7 +270,7 @@
       >
         <!-- Image Column -->
         <template #[`item.image`]="{ item }">
-          <v-avatar size="40" class="elevation-1" :color="item.image ? undefined : getAvatarColor(item.name)" style="border: 2px solid #f5f5f5;">
+          <v-avatar size="40" class="elevation-1" :color="item.image ? undefined : getAvatarColor(item.name)" :style="{'border': '2px solid ' + ($vuetify.theme.dark ? '#333333' : '#f5f5f5')}">
             <v-img
               v-if="item.image"
               :src="item.image"
@@ -496,7 +484,7 @@
         </template>
       </v-data-table>
       <!-- أزرار التنقل بين الصفحات -->
-      <div class="d-flex flex-column align-center pa-4 bg-blue-lighten-5 rounded-b-lg">
+      <div class="d-flex flex-column align-center pa-4 rounded-b-lg" :class="{'bg-blue-lighten-5': !$vuetify.theme.dark, 'bg-blue-darken-4': $vuetify.theme.dark}">
         <v-pagination
           v-model="currentPage"
           :length="pageCount"
@@ -505,33 +493,26 @@
           color="primary"
           @click:prev="prevPage"
           @click:next="nextPage"
-          class="elevation-2"
-          active-color="primary"
-          variant="elevated"
         ></v-pagination>
 
-        <div class="d-flex align-center mt-3 w-100 px-4">
-          <div class="d-flex align-center">
-            <span class="me-2 font-weight-medium">عناصر في الصفحة:</span>
-            <v-btn-toggle
-              v-model="itemsPerPage"
-              mandatory
-              density="comfortable"
-              color="primary"
-              class="elevation-1"
-              rounded="pill"
-            >
-              <v-btn value="5">5</v-btn>
-              <v-btn value="10">10</v-btn>
-              <v-btn value="15">15</v-btn>
-              <v-btn value="-1">الكل</v-btn>
-            </v-btn-toggle>
-          </div>
+        <div class="d-flex align-center mt-2">
+          <span class="me-4">عناصر في الصفحة:</span>
+          <v-btn-toggle
+            v-model="itemsPerPage"
+            mandatory
+            density="comfortable"
+            color="primary"
+          >
+            <v-btn value="5">5</v-btn>
+            <v-btn value="10">10</v-btn>
+            <v-btn value="15">15</v-btn>
+            <v-btn value="-1">الكل</v-btn>
+          </v-btn-toggle>
 
           <v-spacer></v-spacer>
 
-          <div class="text-body-1 font-weight-medium">
-            عرض <span class="text-primary">{{ paginationStart }} - {{ paginationEnd }}</span> من <span class="text-primary">{{ students.length }}</span>
+          <div class="text-body-2">
+            عرض {{ paginationStart }} - {{ paginationEnd }} من {{ students.length }}
           </div>
         </div>
       </div>
@@ -2827,6 +2808,7 @@ const addDummyData = () => {
   min-height: 100%;
   padding-bottom: 60px; /* للتأكد من وجود مساحة كافية في الأسفل */
   text-align: right;
+  background-color: rgb(var(--v-theme-background));
 }
 
 /* أنماط عامة */
@@ -2834,6 +2816,7 @@ const addDummyData = () => {
   border-radius: 12px;
   overflow: hidden;
   transition: all 0.3s ease;
+  background-color: rgb(var(--v-theme-surface));
 }
 
 /* إصلاح مشكلة التمرير */
@@ -2868,6 +2851,7 @@ const addDummyData = () => {
   border-radius: 12px;
   transition: all 0.3s ease;
   overflow: hidden;
+  background-color: rgb(var(--v-theme-surface));
 }
 
 .assignment-list .v-list-item {
@@ -2876,16 +2860,17 @@ const addDummyData = () => {
 }
 
 .assignment-list .v-list-item:hover {
-  background-color: var(--v-theme-primary-lighten-5);
+  background-color: rgba(var(--v-theme-primary), 0.1);
 }
 
 .assignment-list .v-list-item--active {
-  background-color: var(--v-theme-primary-lighten-4);
+  background-color: rgba(var(--v-theme-primary), 0.2);
 }
 
 .student-grades-table-card {
   border-radius: 12px;
   overflow: hidden;
+  background-color: rgb(var(--v-theme-surface));
 }
 
 .student-data-table {
@@ -2894,8 +2879,8 @@ const addDummyData = () => {
 
 .v-data-table .v-data-table-header th {
   font-weight: bold;
-  color: var(--v-theme-primary);
-  background-color: var(--v-theme-blue-lighten-5);
+  color: rgb(var(--v-theme-primary));
+  background-color: rgba(var(--v-theme-primary), 0.1);
 }
 
 @keyframes fadeIn {
@@ -2905,104 +2890,6 @@ const addDummyData = () => {
 
 .v-card {
   animation: fadeIn 0.3s ease-in-out;
-}
-
-/* تنسيقات الصفحة */
-.grades-page {
-  padding: 20px;
-  background-color: #f5f7fa;
-}
-
-/* تنسيقات الجدول */
-.student-data-table {
-  border-radius: 0 0 12px 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-}
-
-/* تنسيقات البطاقة */
-.grades-header-card {
-  border-radius: 12px;
-  overflow: hidden;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-  transition: all 0.3s ease;
-}
-
-.grades-header-card:hover {
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
-}
-
-/* تنسيقات قائمة الواجبات */
-.assignment-list {
-  max-height: 300px;
-  overflow-y: auto;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(0, 0, 0, 0.2) transparent;
-}
-
-.assignment-list::-webkit-scrollbar {
-  width: 6px;
-}
-
-.assignment-list::-webkit-scrollbar-thumb {
-  background-color: rgba(0, 0, 0, 0.2);
-  border-radius: 3px;
-}
-
-.assignment-selector-card {
-  border-radius: 12px;
-  overflow: hidden;
-  transition: all 0.3s ease;
-}
-
-/* تنسيقات بطاقة تفاصيل الواجب */
-.assignment-details-card {
-  border-radius: 12px;
-  overflow: hidden;
-  transition: all 0.3s ease;
-}
-
-.description-box {
-  border-right: 3px solid var(--v-theme-warning);
-  background-color: rgba(var(--v-theme-warning), 0.05) !important;
-}
-
-/* تنسيقات بطاقة جدول الطلاب */
-.student-grades-table-card {
-  border-radius: 12px;
-  overflow: hidden;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-  transition: all 0.3s ease;
-}
-
-.student-grades-table-card:hover {
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
-}
-
-/* تنسيقات الفلاتر */
-.filter-select {
-  transition: all 0.3s ease;
-}
-
-.filter-select:hover {
-  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.1);
-}
-
-/* تنسيقات الروابط */
-a {
-  color: var(--v-theme-primary);
-  text-decoration: none;
-  font-weight: 500;
-  transition: all 0.2s ease;
-}
-
-a:hover {
-  color: var(--v-theme-secondary);
-  text-decoration: underline;
-}
-
-/* تنسيقات الحدود */
-.border-b {
-  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
 }
 
 /* تعديل جداول البيانات للموضوع العربي */
