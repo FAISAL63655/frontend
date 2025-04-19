@@ -149,10 +149,16 @@ export const useGradesStore = defineStore('grades', () => {
       console.log('Initialized grades object in fetchGradesForStudents')
     }
 
+    // تسجيل معلومات تشخيصية
+    console.log('Student IDs to fetch grades for:', studentIds)
+    console.log('Current grades cache:', JSON.stringify(grades.value))
+
     // Si todos los estudiantes tienen datos en caché y son válidos, no hacer la solicitud
     const allCached = studentIds.every(id => {
       const key = `grades-${id}`
-      return isCacheValid(key)
+      const isValid = isCacheValid(key)
+      console.log(`Cache for student ${id}: ${isValid ? 'valid' : 'invalid or missing'}`)
+      return isValid
     })
 
     if (allCached) {
@@ -163,6 +169,35 @@ export const useGradesStore = defineStore('grades', () => {
     try {
       console.log('Fetching grades for multiple students:', studentIds)
 
+      // محاولة استخدام نقطة النهاية batch أولاً
+      try {
+        console.log('Attempting to use batch endpoint')
+        const batchResponse = await api.get('grades/batch/', {
+          params: {
+            student_ids: studentIds.join(',')
+          }
+        })
+
+        console.log('Batch endpoint response:', batchResponse.data)
+        const batchResults = batchResponse.data?.results || []
+
+        // تنظيم النتائج حسب الطالب
+        studentIds.forEach(studentId => {
+          const studentGrades = batchResults.filter(grade => {
+            const matches = grade.student === parseInt(studentId) || grade.student === studentId
+            return matches
+          })
+          console.log(`Grades for student ${studentId} from batch:`, studentGrades)
+          grades.value[studentId] = studentGrades
+          lastFetch.value[`grades-${studentId}`] = Date.now()
+        })
+
+        return batchResults
+      } catch (batchError) {
+        console.error('Error using batch endpoint, falling back to individual requests:', batchError)
+        console.error('Error details:', batchError.response?.data || batchError.message)
+      }
+
       // تقسيم الطلاب إلى مجموعات أصغر (10 طلاب في كل مجموعة) لتجنب الأخطاء
       const chunkSize = 10;
       const chunks = [];
@@ -172,29 +207,33 @@ export const useGradesStore = defineStore('grades', () => {
 
       let allResults = [];
 
-      // جلب البيانات لكل طالب فرديًا لأن واجهة الـ batch لا تعمل
+      // جلب البيانات لكل طالب فرديًا
       for (const studentId of studentIds) {
         const key = `grades-${studentId}`;
 
         // استخدام الكاش إذا كان متاحًا
         if (isCacheValid(key)) {
+          console.log(`Using cached data for student ${studentId}`)
           allResults = [...allResults, ...(grades.value[studentId] || [])];
           continue;
         }
 
         try {
+          console.log(`Making individual request for student ${studentId}`)
           const response = await api.get('grades/', {
             params: {
               student: studentId
             }
           });
 
+          console.log(`Response for student ${studentId}:`, response.data)
           const studentGrades = response.data?.results || [];
           grades.value[studentId] = studentGrades;
           lastFetch.value[key] = Date.now();
           allResults = [...allResults, ...studentGrades];
         } catch (err) {
           console.error(`Error fetching grades for student ${studentId}:`, err);
+          console.error('Error details:', err.response?.data || err.message);
           grades.value[studentId] = [];
           lastFetch.value[key] = Date.now();
         }
@@ -203,6 +242,7 @@ export const useGradesStore = defineStore('grades', () => {
       return allResults;
     } catch (error) {
       console.error('Error fetching grades for students:', error);
+      console.error('Error details:', error.response?.data || error.message);
 
       // استخدام الطلبات الفردية في حال فشل الطلب الرئيسي
       console.log('Falling back to individual requests');
@@ -213,21 +253,25 @@ export const useGradesStore = defineStore('grades', () => {
 
         // استخدام الكاش إذا كان متاحًا
         if (isCacheValid(key)) {
+          console.log(`Using cached data for student ${id}`)
           results.push(...(grades.value[id] || []));
           continue;
         }
 
         try {
+          console.log(`Making individual request for student ${id}`)
           const response = await api.get('grades/', {
             params: { student: id }
           });
 
+          console.log(`Response for student ${id}:`, response.data)
           const studentGrades = response.data?.results || [];
           grades.value[id] = studentGrades;
           lastFetch.value[key] = Date.now();
           results.push(...studentGrades);
         } catch (err) {
           console.error(`Error fetching grades for student ${id}:`, err);
+          console.error('Error details:', err.response?.data || err.message);
           grades.value[id] = [];
           lastFetch.value[key] = Date.now();
         }
@@ -594,8 +638,32 @@ export const useGradesStore = defineStore('grades', () => {
     try {
       console.log('Deleting assignment:', assignmentId)
 
-      // حذف الواجب من الخادم
-      await api.delete(`assignments/${assignmentId}/`)
+      // التحقق من أن المعرف ليس معرفًا مؤقتًا
+      if (assignmentId && assignmentId.toString().indexOf('temp-') !== -1) {
+        console.log('Skipping delete for temporary assignment ID:', assignmentId)
+
+        // تحديث الكاش فقط للمعرفات المؤقتة
+        if (assignments.value[subjectId]) {
+          assignments.value[subjectId] = assignments.value[subjectId].filter(a => a.id !== assignmentId)
+        }
+
+        return true
+      }
+
+      try {
+        // حذف الواجب من الخادم
+        await api.delete(`assignments/${assignmentId}/`)
+      } catch (deleteError) {
+        console.error('Error deleting assignment from server:', deleteError)
+        console.error('Error details:', deleteError.response?.data || deleteError.message)
+
+        // إذا كان الخطأ 404 (غير موجود)، نحذف من الكاش فقط
+        if (deleteError.response && deleteError.response.status === 404) {
+          console.log('Assignment not found on server, removing from cache only')
+        } else {
+          throw deleteError
+        }
+      }
 
       // تحديث الكاش
       if (assignments.value[subjectId]) {
@@ -656,10 +724,27 @@ export const useGradesStore = defineStore('grades', () => {
     try {
       console.log('Saving batch grades:', gradesDataArray)
 
+      // التحقق من صحة البيانات المدخلة
+      if (!Array.isArray(gradesDataArray)) {
+        console.error('Invalid input: gradesDataArray is not an array')
+        return []
+      }
+
+      if (gradesDataArray.length === 0) {
+        console.warn('Empty grades array provided, nothing to save')
+        return []
+      }
+
       // تحويل بيانات الدرجات إلى التنسيق المطلوب للباك اند
       const formattedGrades = []
 
       for (const gradeData of gradesDataArray) {
+        // التحقق من وجود الحقول المطلوبة
+        if (!gradeData.student || !gradeData.subject || !gradeData.date) {
+          console.warn('Skipping grade with missing required fields:', gradeData)
+          continue
+        }
+
         // إضافة كل نوع من أنواع الدرجات كسجل منفصل
         const gradeTypes = [
           { type: 'theory', score: gradeData.theory || 0, max_score: 15 },
@@ -670,63 +755,88 @@ export const useGradesStore = defineStore('grades', () => {
         ]
 
         for (const gradeType of gradeTypes) {
-          formattedGrades.push({
-            student: gradeData.student,
-            subject: gradeData.subject,
-            date: gradeData.date,
-            type: gradeType.type,
-            score: gradeType.score,
-            max_score: gradeType.max_score
-          })
-        }
-      }
-
-      console.log('Using new batch API endpoint')
-      console.log('Formatted grades:', formattedGrades)
-
-      // استخدام نقطة النهاية المجمعة الجديدة
-      const response = await api.post('grades/batch-create/', {
-        grades: formattedGrades
-      })
-
-      console.log('Batch save response:', response.data)
-
-      // تحديث الكاش
-      if (response.data && response.data.results) {
-        for (const grade of response.data.results) {
-          if (!grades.value[grade.student]) {
-            grades.value[grade.student] = []
-          }
-
-          // البحث عن درجة موجودة في الكاش وتحديثها
-          const existingIndex = grades.value[grade.student].findIndex(g =>
-            g.id === grade.id ||
-            (g.type === grade.type && g.subject === grade.subject && g.date === grade.date)
-          )
-
-          if (existingIndex !== -1) {
-            grades.value[grade.student][existingIndex] = grade
-          } else {
-            grades.value[grade.student].push(grade)
+          // إذا كان النوع موجود في gradeData أو كانت الدرجة أكبر من صفر
+          if (gradeData[gradeType.type] !== undefined || gradeType.score > 0) {
+            formattedGrades.push({
+              student: gradeData.student,
+              subject: gradeData.subject,
+              date: gradeData.date,
+              type: gradeType.type,
+              score: gradeType.score,
+              max_score: gradeType.max_score
+            })
           }
         }
       }
 
-      // إذا كانت هناك أخطاء، نسجلها في وحدة التحكم
-      if (response.data && response.data.errors && response.data.errors.length > 0) {
-        console.warn('Some grades could not be saved:', response.data.errors)
+      console.log('Using batch API endpoint')
+      console.log('Formatted grades to save:', formattedGrades)
+
+      if (formattedGrades.length === 0) {
+        console.warn('No valid grades to save after formatting')
+        return []
       }
 
-      // إرجاع النتائج
-      return response.data.results || []
+      try {
+        // استخدام نقطة النهاية المجمعة
+        console.log('Making API request to grades/batch-create/')
+        const response = await api.post('grades/batch-create/', {
+          grades: formattedGrades
+        })
+
+        console.log('Batch save response:', response.data)
+
+        // تحديث الكاش
+        if (response.data && response.data.results) {
+          console.log(`Successfully saved ${response.data.results.length} grades`)
+
+          for (const grade of response.data.results) {
+            if (!grades.value[grade.student]) {
+              grades.value[grade.student] = []
+            }
+
+            // البحث عن درجة موجودة في الكاش وتحديثها
+            const existingIndex = grades.value[grade.student].findIndex(g =>
+              g.id === grade.id ||
+              (g.type === grade.type && g.subject === grade.subject && g.date === grade.date)
+            )
+
+            if (existingIndex !== -1) {
+              grades.value[grade.student][existingIndex] = grade
+            } else {
+              grades.value[grade.student].push(grade)
+            }
+          }
+        }
+
+        // إذا كانت هناك أخطاء، نسجلها في وحدة التحكم
+        if (response.data && response.data.errors && response.data.errors.length > 0) {
+          console.warn(`${response.data.errors.length} grades could not be saved:`, response.data.errors)
+        }
+
+        // إرجاع النتائج
+        return response.data.results || []
+      } catch (apiError) {
+        console.error('Error using batch-create endpoint:', apiError)
+        console.error('Error details:', apiError.response?.data || apiError.message)
+
+        // في حالة فشل الطلب المجمع، نستخدم الطريقة القديمة كخطة بديلة
+        throw apiError
+      }
     } catch (error) {
-      console.error('Error saving batch grades:', error)
+      console.error('Error saving batch grades, falling back to individual saves:', error)
 
       // في حالة فشل الطلب المجمع، نستخدم الطريقة القديمة كخطة بديلة
-      console.log('Falling back to individual grade saves')
+      console.log('Using individual grade saves as fallback')
 
       const results = []
       for (const gradeData of gradesDataArray) {
+        // التحقق من وجود الحقول المطلوبة
+        if (!gradeData.student || !gradeData.subject || !gradeData.date) {
+          console.warn('Skipping grade with missing required fields:', gradeData)
+          continue
+        }
+
         const gradeTypes = [
           { type: 'theory', score: gradeData.theory || 0 },
           { type: 'practical', score: gradeData.practical || 0 },
@@ -736,19 +846,25 @@ export const useGradesStore = defineStore('grades', () => {
         ]
 
         for (const gradeType of gradeTypes) {
-          try {
-            const singleGradeData = {
-              student: gradeData.student,
-              subject: gradeData.subject,
-              date: gradeData.date,
-              type: gradeType.type,
-              score: gradeType.score
-            }
+          // إذا كان النوع موجود في gradeData أو كانت الدرجة أكبر من صفر
+          if (gradeData[gradeType.type] !== undefined || gradeType.score > 0) {
+            try {
+              console.log(`Saving individual ${gradeType.type} grade for student ${gradeData.student}`)
+              const singleGradeData = {
+                student: gradeData.student,
+                subject: gradeData.subject,
+                date: gradeData.date,
+                type: gradeType.type,
+                score: gradeType.score
+              }
 
-            const result = await saveGrade(singleGradeData)
-            results.push(result)
-          } catch (err) {
-            console.error(`Error saving individual ${gradeType.type} grade:`, err)
+              const result = await saveGrade(singleGradeData)
+              console.log(`Successfully saved ${gradeType.type} grade:`, result)
+              results.push(result)
+            } catch (err) {
+              console.error(`Error saving individual ${gradeType.type} grade:`, err)
+              console.error('Error details:', err.response?.data || err.message)
+            }
           }
         }
       }

@@ -1983,29 +1983,45 @@ const saveAllGrades = async () => {
     console.log('Saving all grades...')
 
     // التحقق من وجود البيانات المطلوبة
+    console.log('Selected subject:', selectedSubject.value)
+    console.log('Selected class:', selectedClass.value)
+    console.log('Selected section:', selectedSection.value)
+    console.log('Selected date:', selectedDate.value)
+
     if (!selectedSubject.value || !selectedClass.value || !selectedSection.value || !selectedDate.value) {
+      console.error('Missing required data for saving grades')
+      console.error('Subject:', selectedSubject.value)
+      console.error('Class:', selectedClass.value)
+      console.error('Section:', selectedSection.value)
+      console.error('Date:', selectedDate.value)
       showSnackbar('يرجى التأكد من اختيار الصف والفصل والمادة والتاريخ', 'warning')
       return
     }
 
     // التحقق من وجود طلاب
+    console.log('Students to save grades for:', students.value)
     if (students.value.length === 0) {
+      console.error('No students found to save grades for')
       showSnackbar('لا يوجد طلاب لحفظ الدرجات', 'warning')
       return
     }
 
     // تحضير البيانات للإرسال
-    const gradesData = students.value.map(student => ({
-      student: student.id,
-      subject: selectedSubject.value.id,
-      date: selectedDate.value,
-      theory: parseInt(student.theory) || 0,
-      practical: parseInt(student.practical) || 0,
-      homework: parseInt(student.homework) || 0,
-      participation: parseInt(student.participation) || 0,
-      quran: parseInt(student.quran) || 0,
-      final: parseInt(student.final) || 0
-    }))
+    const gradesData = students.value.map(student => {
+      const data = {
+        student: student.id,
+        subject: selectedSubject.value.id,
+        date: selectedDate.value,
+        theory: parseInt(student.theory) || 0,
+        practical: parseInt(student.practical) || 0,
+        homework: parseInt(student.homework) || 0,
+        participation: parseInt(student.participation) || 0,
+        quran: parseInt(student.quran) || 0,
+        final: parseInt(student.final) || 0
+      }
+      console.log(`Prepared data for student ${student.id} (${student.name}):`, data)
+      return data
+    })
 
     try {
       // تحضير الدرجات للحفظ المجمع
@@ -2155,7 +2171,10 @@ const saveAllGrades = async () => {
 
 // دالة جلب الواجبات
 const fetchAssignments = async () => {
-  if (!selectedSubject.value) return
+  if (!selectedSubject.value) {
+    console.warn('Cannot fetch assignments: No subject selected')
+    return
+  }
 
   try {
     loadingAssignments.value = true
@@ -2163,40 +2182,23 @@ const fetchAssignments = async () => {
 
     // جلب الواجبات باستخدام متجر الدرجات
     const assignmentsData = await gradesStore.fetchAssignmentsBySubject(selectedSubject.value.id)
+    console.log('Assignments data received:', assignmentsData)
     assignments.value = assignmentsData
 
     // تعيين الواجب الحالي إذا لم يكن محدداً
     if (!currentAssignment.value && assignments.value.length > 0) {
       currentAssignment.value = assignments.value[0]
+      console.log('Set current assignment to:', currentAssignment.value)
     }
 
-    // إذا لم تكن هناك واجبات، نضيف بيانات تجريبية
+    // إذا لم تكن هناك واجبات، نعرض رسالة مناسبة
     if (assignments.value.length === 0) {
-      // بيانات تجريبية للواجبات
-      assignments.value = [
-        {
-          id: 'temp-1',
-          title: 'واجب الفصل الأول',
-          description: 'حل تمارين الفصل الأول من الكتاب',
-          score: 10,
-          due_date: new Date().toISOString().split('T')[0],
-          subject: selectedSubject.value.id
-        },
-        {
-          id: 'temp-2',
-          title: 'مشروع نهاية الفصل',
-          description: 'إعداد مشروع بحثي عن موضوعات المادة',
-          score: 15,
-          due_date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-          subject: selectedSubject.value.id
-        }
-      ]
-
-      // تعيين الواجب الحالي
-      currentAssignment.value = assignments.value[0]
+      console.log('No assignments found for subject:', selectedSubject.value.id)
+      // يمكن للمستخدم إنشاء واجبات جديدة
     }
   } catch (error) {
     console.error('Error fetching assignments:', error)
+    console.error('Error details:', error.response?.data || error.message)
     showSnackbar('حدث خطأ أثناء جلب الواجبات', 'error')
   } finally {
     loadingAssignments.value = false
@@ -2336,14 +2338,37 @@ const selectAssignment = (assignment) => {
 }
 
 // دالة تحديث حالة تسليم الواجبات
-const updateAssignmentStatus = () => {
-  if (!currentAssignment.value || students.value.length === 0) return
+const updateAssignmentStatus = async () => {
+  if (!currentAssignment.value || students.value.length === 0) {
+    console.warn('Cannot update assignment status: No current assignment or no students')
+    return
+  }
 
-  // محاكاة تحديث حالة تسليم الواجبات للطلاب
-  students.value.forEach(student => {
-    // تعيين حالة عشوائية لتسليم الواجب
-    student.assignmentStatus = Math.random() > 0.3 ? 'submitted' : 'not_submitted'
-  })
+  console.log('Updating assignment status for assignment:', currentAssignment.value.id)
+
+  try {
+    // جلب حالة تسليم الواجبات من الخادم
+    const studentIds = students.value.map(student => student.id)
+
+    // جلب تسليمات الواجبات للطلاب
+    const submissions = await gradesStore.fetchSubmissionsForAssignment(currentAssignment.value.id, studentIds)
+    console.log('Submissions data received:', submissions)
+
+    // تحديث حالة تسليم الواجبات للطلاب
+    students.value.forEach(student => {
+      // البحث عن تسليم الطالب لهذا الواجب
+      const submission = submissions.find(s => s.student === parseInt(student.id) || s.student === student.id)
+
+      // تحديث حالة التسليم
+      student.assignmentStatus = submission ? 'submitted' : 'not_submitted'
+      student.assignmentSubmission = submission
+    })
+
+    console.log('Assignment status updated for all students')
+  } catch (error) {
+    console.error('Error updating assignment status:', error)
+    console.error('Error details:', error.response?.data || error.message)
+  }
 }
 
 // دالة عرض رسالة التنبيه
