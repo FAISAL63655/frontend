@@ -1649,95 +1649,170 @@ const saveStudentDetails = async () => {
     studentDetailsDialog.value.loading = true
     console.log('Saving student details:', studentDetailsDialog.value.student)
 
-    // تحضير بيانات الدرجات
-    const gradeData = {
-      student: studentDetailsDialog.value.student.id,
-      subject: selectedSubject.value.id,
-      date: selectedDate.value,
-      theory: parseInt(studentDetailsDialog.value.student.theory) || 0,
-      practical: parseInt(studentDetailsDialog.value.student.practical) || 0,
-      homework: parseInt(studentDetailsDialog.value.student.homework) || 0,
-      participation: parseInt(studentDetailsDialog.value.student.participation) || 0,
-      quran: parseInt(studentDetailsDialog.value.student.quran) || 0,
-      final: parseInt(studentDetailsDialog.value.student.final) || 0
+    // التحقق من وجود البيانات المطلوبة
+    if (!studentDetailsDialog.value.student || !selectedSubject.value || !selectedDate.value) {
+      showSnackbar('بيانات غير مكتملة', 'warning')
+      return
     }
 
-    // حفظ الدرجات باستخدام متجر الدرجات
-    await gradesStore.saveGrade(gradeData)
+    try {
+      // تحضير بيانات الدرجات
+      const gradeTypes = [
+        { type: 'theory', score: parseInt(studentDetailsDialog.value.student.theory) || 0, max_score: 15 },
+        { type: 'practical', score: parseInt(studentDetailsDialog.value.student.practical) || 0, max_score: 5 },
+        { type: 'homework', score: parseInt(studentDetailsDialog.value.student.homework) || 0, max_score: 10 },
+        { type: 'participation', score: parseInt(studentDetailsDialog.value.student.participation) || 0, max_score: 10 },
+        { type: 'quran', score: parseInt(studentDetailsDialog.value.student.quran) || 0, max_score: 20 },
+        { type: 'final', score: parseInt(studentDetailsDialog.value.student.final) || 0, max_score: 40 }
+      ]
 
-    // تحضير بيانات الحضور
-    const attendanceData = {
-      student: studentDetailsDialog.value.student.id,
-      date: selectedDate.value,
-      status: studentDetailsDialog.value.student.attendance,
-      class_name: selectedClass.value.id,
-      section: selectedSection.value.id
+      // حفظ كل نوع من الدرجات على حدة
+      for (const gradeType of gradeTypes) {
+        const gradeData = {
+          student: studentDetailsDialog.value.student.id,
+          subject: selectedSubject.value.id,
+          date: selectedDate.value,
+          type: gradeType.type,
+          score: gradeType.score,
+          max_score: gradeType.max_score
+        }
+
+        await gradesStore.saveGrade(gradeData)
+      }
+
+      // تحضير بيانات الحضور
+      const attendanceData = {
+        student: studentDetailsDialog.value.student.id,
+        date: selectedDate.value,
+        status: studentDetailsDialog.value.student.attendance,
+        class_name: selectedClass.value.id,
+        section: selectedSection.value.id,
+        schedule: 1 // استخدام القيمة الافتراضية
+      }
+
+      // حفظ الحضور باستخدام متجر الدرجات
+      await gradesStore.saveAttendance(attendanceData)
+
+      // تحديث بيانات الطالب في الجدول
+      const studentIndex = students.value.findIndex(s => s.id === studentDetailsDialog.value.student.id)
+      if (studentIndex !== -1) {
+        // تحديث البيانات المهمة فقط
+        students.value[studentIndex].theory = studentDetailsDialog.value.student.theory
+        students.value[studentIndex].practical = studentDetailsDialog.value.student.practical
+        students.value[studentIndex].homework = studentDetailsDialog.value.student.homework
+        students.value[studentIndex].participation = studentDetailsDialog.value.student.participation
+        students.value[studentIndex].quran = studentDetailsDialog.value.student.quran
+        students.value[studentIndex].final = studentDetailsDialog.value.student.final
+        students.value[studentIndex].attendance = studentDetailsDialog.value.student.attendance
+
+        // تحديث المجموع الكلي
+        students.value[studentIndex].total = calculateTotal(students.value[studentIndex])
+      }
+
+      showSnackbar('تم حفظ بيانات الطالب بنجاح', 'success')
+      studentDetailsDialog.value.show = false
+    } catch (apiError) {
+      console.error('API Error:', apiError)
+
+      // التحقق من نوع الخطأ
+      if (apiError.response) {
+        // خطأ من الخادم
+        const statusCode = apiError.response.status
+
+        if (statusCode === 400) {
+          showSnackbar('خطأ في البيانات المرسلة', 'error')
+        } else if (statusCode === 401 || statusCode === 403) {
+          showSnackbar('ليس لديك صلاحية لحفظ هذه البيانات', 'error')
+        } else if (statusCode >= 500) {
+          showSnackbar('حدث خطأ في الخادم', 'error')
+        } else {
+          showSnackbar('حدث خطأ أثناء حفظ بيانات الطالب', 'error')
+        }
+      } else if (apiError.request) {
+        showSnackbar('لا يمكن الوصول إلى الخادم', 'error')
+      } else {
+        showSnackbar(`حدث خطأ غير متوقع: ${apiError.message}`, 'error')
+      }
+
+      throw apiError
     }
-
-    // حفظ الحضور باستخدام متجر الدرجات
-    await gradesStore.saveAttendance(attendanceData)
-
-    // تحديث بيانات الطالب في الجدول
-    const studentIndex = students.value.findIndex(s => s.id === studentDetailsDialog.value.student.id)
-    if (studentIndex !== -1) {
-      // تحديث البيانات المهمة فقط
-      students.value[studentIndex].theory = studentDetailsDialog.value.student.theory
-      students.value[studentIndex].practical = studentDetailsDialog.value.student.practical
-      students.value[studentIndex].homework = studentDetailsDialog.value.student.homework
-      students.value[studentIndex].participation = studentDetailsDialog.value.student.participation
-      students.value[studentIndex].quran = studentDetailsDialog.value.student.quran
-      students.value[studentIndex].final = studentDetailsDialog.value.student.final
-      students.value[studentIndex].attendance = studentDetailsDialog.value.student.attendance
-    }
-
-    showSnackbar('تم حفظ بيانات الطالب بنجاح', 'success')
-    studentDetailsDialog.value.show = false
   } catch (error) {
     console.error('Error saving student details:', error)
-    showSnackbar('حدث خطأ أثناء حفظ بيانات الطالب', 'error')
+    // لا نعرض رسالة خطأ هنا لأنها عرضت بالفعل في المستوى الأدنى
   } finally {
     studentDetailsDialog.value.loading = false
   }
 }
 
 // دالة جلب سجل حضور الطالب
-const fetchStudentAttendanceHistory = (studentId) => {
-  // محاكاة جلب سجل الحضور
-  const today = new Date()
-  const history = []
+const fetchStudentAttendanceHistory = async (studentId) => {
+  try {
+    console.log('Fetching attendance history for student:', studentId)
 
-  // إنشاء سجل حضور للأيام السابقة
-  for (let i = 0; i < 10; i++) {
-    const date = new Date(today)
-    date.setDate(today.getDate() - i)
-    const dateString = date.toISOString().split('T')[0]
+    // محاولة جلب سجل الحضور من الخادم
+    // يمكن إضافة الاستدعاء الفعلي للخادم هنا
+    // للآن نستخدم بيانات تجريبية
 
-    history.push({
-      date: dateString,
-      status: Math.random() > 0.2 ? 'present' : 'absent'
-    })
+    const today = new Date()
+    const history = []
+
+    // إنشاء سجل حضور للأيام السابقة
+    for (let i = 0; i < 10; i++) {
+      const date = new Date(today)
+      date.setDate(today.getDate() - i)
+      const dateString = date.toISOString().split('T')[0]
+
+      // استخدام معرف الطالب لتوليد قيمة ثابتة للحضور
+      const randomValue = (parseInt(studentId) + i) % 10
+      const status = randomValue > 2 ? 'present' : 'absent'
+
+      history.push({
+        date: dateString,
+        status: status
+      })
+    }
+
+    studentAttendanceHistory.value = history
+  } catch (error) {
+    console.error('Error fetching attendance history:', error)
+    studentAttendanceHistory.value = []
   }
-
-  studentAttendanceHistory.value = history
 }
 
 // دالة جلب ملاحظات الطالب
-const fetchStudentNotes = (studentId) => {
-  // محاكاة جلب ملاحظات الطالب
-  const notes = [
-    {
-      type: 'positive',
-      content: 'متفوق في المادة ويشارك بشكل فعال في الصف',
-      date: new Date().toISOString().split('T')[0]
-    },
-    {
-      type: 'negative',
-      content: 'يحتاج إلى مزيد من الاهتمام بالواجبات المنزلية',
-      date: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-    }
-  ]
+const fetchStudentNotes = async (studentId) => {
+  try {
+    console.log('Fetching notes for student:', studentId)
 
-  studentNotes.value = notes
+    // محاولة جلب ملاحظات الطالب من الخادم
+    // يمكن إضافة الاستدعاء الفعلي للخادم هنا
+    // للآن نستخدم بيانات تجريبية
+
+    // استخدام معرف الطالب لتحديد نوع الملاحظة
+    const isPositive = parseInt(studentId) % 2 === 0
+
+    const notes = [
+      {
+        type: isPositive ? 'positive' : 'negative',
+        content: isPositive ?
+          'متفوق في المادة ويشارك بشكل فعال في الصف' :
+          'يحتاج إلى مزيد من الاهتمام بالواجبات المنزلية',
+        date: new Date().toISOString().split('T')[0]
+      },
+      {
+        type: !isPositive ? 'positive' : 'negative',
+        content: !isPositive ?
+          'ملتزم بالحضور والمواعيد' :
+          'يحتاج إلى تحسين مستوى المشاركة في الصف',
+        date: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+      }
+    ]
+
+    studentNotes.value = notes
+  } catch (error) {
+    console.error('Error fetching student notes:', error)
+    studentNotes.value = []
+  }
 }
 
 // دالة فتح نافذة إضافة ملاحظة
@@ -1758,28 +1833,60 @@ const addNote = async () => {
 
     // التحقق من صحة البيانات
     if (!noteDialog.value.content) {
-      showSnackbar('يرجى إدخال محتوى الملاحظة', 'error')
+      showSnackbar('يرجى إدخال محتوى الملاحظة', 'warning')
       return
     }
 
-    // إنشاء ملاحظة جديدة
-    const newNote = {
-      type: noteDialog.value.type,
-      content: noteDialog.value.content,
-      date: new Date().toISOString().split('T')[0]
+    if (!noteDialog.value.studentId) {
+      showSnackbar('لم يتم تحديد الطالب', 'warning')
+      return
     }
 
-    // محاكاة الحفظ
-    await new Promise(resolve => setTimeout(resolve, 500))
+    try {
+      // إنشاء ملاحظة جديدة
+      const newNote = {
+        student: noteDialog.value.studentId,
+        type: noteDialog.value.type,
+        content: noteDialog.value.content,
+        date: new Date().toISOString().split('T')[0]
+      }
 
-    // إضافة الملاحظة إلى القائمة
-    studentNotes.value.unshift(newNote)
+      // محاولة حفظ الملاحظة على الخادم
+      // يمكن إضافة الاستدعاء الفعلي للخادم هنا
+      // للآن نستخدم محاكاة الحفظ
+      await new Promise(resolve => setTimeout(resolve, 500))
 
-    showSnackbar('تمت إضافة الملاحظة بنجاح', 'success')
-    noteDialog.value.show = false
+      // إضافة الملاحظة إلى القائمة
+      studentNotes.value.unshift(newNote)
+
+      showSnackbar('تمت إضافة الملاحظة بنجاح', 'success')
+      noteDialog.value.show = false
+    } catch (apiError) {
+      console.error('API Error:', apiError)
+
+      // التحقق من نوع الخطأ
+      if (apiError.response) {
+        // خطأ من الخادم
+        const statusCode = apiError.response.status
+
+        if (statusCode === 400) {
+          showSnackbar('خطأ في بيانات الملاحظة', 'error')
+        } else if (statusCode === 401 || statusCode === 403) {
+          showSnackbar('ليس لديك صلاحية لإضافة ملاحظات', 'error')
+        } else {
+          showSnackbar('حدث خطأ أثناء إضافة الملاحظة', 'error')
+        }
+      } else if (apiError.request) {
+        showSnackbar('لا يمكن الوصول إلى الخادم', 'error')
+      } else {
+        showSnackbar(`حدث خطأ غير متوقع: ${apiError.message}`, 'error')
+      }
+
+      throw apiError
+    }
   } catch (error) {
     console.error('Error adding note:', error)
-    showSnackbar('حدث خطأ أثناء إضافة الملاحظة', 'error')
+    // لا نعرض رسالة خطأ هنا لأنها عرضت بالفعل في المستوى الأدنى
   } finally {
     noteDialog.value.loading = false
   }
@@ -1819,6 +1926,18 @@ const saveAllGrades = async () => {
     saving.value = true
     console.log('Saving all grades...')
 
+    // التحقق من وجود البيانات المطلوبة
+    if (!selectedSubject.value || !selectedClass.value || !selectedSection.value || !selectedDate.value) {
+      showSnackbar('يرجى التأكد من اختيار الصف والفصل والمادة والتاريخ', 'warning')
+      return
+    }
+
+    // التحقق من وجود طلاب
+    if (students.value.length === 0) {
+      showSnackbar('لا يوجد طلاب لحفظ الدرجات', 'warning')
+      return
+    }
+
     // تحضير البيانات للإرسال
     const gradesData = students.value.map(student => ({
       student: student.id,
@@ -1832,27 +1951,66 @@ const saveAllGrades = async () => {
       final: parseInt(student.final) || 0
     }))
 
-    // حفظ الدرجات باستخدام متجر الدرجات
-    console.log('Grades data to save:', gradesData)
-    await gradesStore.saveBatchGrades(gradesData)
+    try {
+      // حفظ الدرجات باستخدام متجر الدرجات
+      console.log('Grades data to save:', gradesData)
+      await gradesStore.saveBatchGrades(gradesData)
 
-    // حفظ بيانات الحضور
-    const attendanceData = students.value.map(student => ({
-      student: student.id,
-      date: selectedDate.value,
-      status: student.attendance,
-      class_name: selectedClass.value.id,
-      section: selectedSection.value.id
-    }))
+      // حفظ بيانات الحضور
+      const attendanceData = students.value.map(student => ({
+        student: student.id,
+        date: selectedDate.value,
+        status: student.attendance,
+        class_name: selectedClass.value.id,
+        section: selectedSection.value.id
+      }))
 
-    console.log('Attendance data to save:', attendanceData)
-    await gradesStore.saveBatchAttendance(attendanceData)
+      console.log('Attendance data to save:', attendanceData)
+      await gradesStore.saveBatchAttendance(attendanceData)
 
-    // عرض رسالة نجاح
-    showSnackbar('تم حفظ الدرجات والحضور بنجاح', 'success')
+      // عرض رسالة نجاح
+      showSnackbar('تم حفظ الدرجات والحضور بنجاح', 'success')
+    } catch (apiError) {
+      console.error('API Error:', apiError)
+
+      // التحقق من نوع الخطأ
+      if (apiError.response) {
+        // خطأ من الخادم
+        const statusCode = apiError.response.status
+        const errorData = apiError.response.data
+
+        if (statusCode === 400) {
+          // خطأ في البيانات المرسلة
+          let errorMessage = 'خطأ في البيانات المرسلة'
+          if (errorData && typeof errorData === 'object') {
+            errorMessage = Object.entries(errorData)
+              .map(([key, value]) => `${key}: ${value}`)
+              .join(', ')
+          }
+          showSnackbar(`خطأ في البيانات: ${errorMessage}`, 'error')
+        } else if (statusCode === 401 || statusCode === 403) {
+          // خطأ في المصادقة
+          showSnackbar('ليس لديك صلاحية لحفظ هذه البيانات', 'error')
+        } else if (statusCode >= 500) {
+          // خطأ في الخادم
+          showSnackbar('حدث خطأ في الخادم، يرجى المحاولة مرة أخرى لاحقاً', 'error')
+        } else {
+          // خطأ غير معروف
+          showSnackbar('حدث خطأ أثناء حفظ البيانات', 'error')
+        }
+      } else if (apiError.request) {
+        // لم يتم استلام استجابة من الخادم
+        showSnackbar('لا يمكن الوصول إلى الخادم، يرجى التحقق من اتصالك بالإنترنت', 'error')
+      } else {
+        // خطأ في إعداد الطلب
+        showSnackbar(`حدث خطأ غير متوقع: ${apiError.message}`, 'error')
+      }
+
+      throw apiError // إعادة رمي الخطأ للتعامل معه في المستوى الأعلى
+    }
   } catch (error) {
     console.error('Error saving grades and attendance:', error)
-    showSnackbar('حدث خطأ أثناء حفظ البيانات', 'error')
+    // لا نعرض رسالة خطأ هنا لأنها عرضت بالفعل في المستوى الأدنى
   } finally {
     saving.value = false
   }
