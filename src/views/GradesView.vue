@@ -289,9 +289,9 @@
       </template>
 
       <!-- عرض صورة الطالب -->
-      <template v-slot:item.image="{ item }">
+      <template #[`item.image`]="{ item }">
         <v-avatar size="40" :color="!item.image ? 'primary' : undefined">
-          <img v-if="item.image" :src="item.image" alt="Student" />
+          <img v-if="item.image" :src="item.image" alt="Student" @error="handleImageError(item)" />
           <span v-else class="white--text">{{ getInitials(item.name) }}</span>
         </v-avatar>
       </template>
@@ -997,7 +997,7 @@
         <v-icon class="me-2" v-else>mdi-information</v-icon>
         {{ snackbar.text }}
       </div>
-      <template v-slot:actions>
+      <template #actions>
         <v-btn
           variant="text"
           @click="snackbar.show = false"
@@ -1106,6 +1106,7 @@ const getStudentImage = (imagePath) => {
 }
 
 // دالة للتعامل مع أخطاء تحميل الصور في الجدول
+// Usamos esta función en la imagen del avatar
 const handleImageError = (item) => {
   console.error('GradesView: خطأ في تحميل صورة الطالب')
 
@@ -1142,6 +1143,9 @@ const handleStudentDetailsImageError = () => {
 
 // متغيرات جديدة للتصميم
 const showFilters = ref(true)
+// Variable para búsqueda (se usará en futuras implementaciones)
+// @ts-ignore
+// eslint-disable-next-line no-unused-vars
 const search = ref('')
 const dateMenu = ref(false)
 
@@ -1249,6 +1253,24 @@ const encouragementStudent = ref({
 
 // Notes menu state
 const noteMenuOpen = ref({})
+
+// Confirm dialog
+const confirmDialog = ref({
+  show: false,
+  title: '',
+  message: '',
+  color: 'primary',
+  icon: 'mdi-help-circle',
+  loading: false,
+  confirm: () => {}
+})
+
+// Snackbar
+const snackbar = ref({
+  show: false,
+  text: '',
+  color: 'success'
+})
 
 // Table headers
 const headers = ref([
@@ -2824,8 +2846,9 @@ const addDummyData = () => {
       image: 'https://randomuser.me/api/portraits/men/1.jpg',
       theory: 12,
       practical: 4,
-      homework: 25,
+      homework: 8,
       participation: 8,
+      quran: 18,
       final: 35,
       attendance: 'present',
       assignmentStatus: 'submitted',
@@ -2840,8 +2863,9 @@ const addDummyData = () => {
       image: 'https://randomuser.me/api/portraits/men/2.jpg',
       theory: 10,
       practical: 3,
-      homework: 20,
+      homework: 7,
       participation: 7,
+      quran: 15,
       final: 30,
       attendance: 'present',
       assignmentStatus: 'not_submitted',
@@ -2856,8 +2880,9 @@ const addDummyData = () => {
       image: 'https://randomuser.me/api/portraits/men/3.jpg',
       theory: 14,
       practical: 5,
-      homework: 28,
+      homework: 9,
       participation: 9,
+      quran: 19,
       final: 38,
       attendance: 'absent',
       assignmentStatus: 'submitted',
