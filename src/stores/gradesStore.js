@@ -173,57 +173,31 @@ export const useGradesStore = defineStore('grades', () => {
       
       let allResults = [];
       
-      // جلب البيانات لكل مجموعة طلاب
-      for (const chunk of chunks) {
+      // جلب البيانات لكل طالب فرديًا لأن واجهة الـ batch لا تعمل
+      for (const studentId of studentIds) {
+        const key = `grades-${studentId}`;
+        
+        // استخدام الكاش إذا كان متاحًا
+        if (isCacheValid(key)) {
+          allResults = [...allResults, ...(grades.value[studentId] || [])];
+          continue;
+        }
+        
         try {
-          // استخدام واجهة batch API مع مجموعات أصغر
-          const response = await api.get('grades/batch/', {
-            params: {
-              student_ids: chunk.join(',')
+          const response = await api.get('grades/', {
+            params: { 
+              student: studentId 
             }
           });
           
-          if (response.data && Array.isArray(response.data)) {
-            allResults = [...allResults, ...response.data];
-            
-            // تخزين البيانات في الكاش لكل طالب
-            chunk.forEach(id => {
-              const studentGrades = response.data.filter(grade => grade.student === parseInt(id));
-              grades.value[id] = studentGrades;
-              lastFetch.value[`grades-${id}`] = Date.now();
-            });
-          }
-        } catch (chunkError) {
-          console.log(`Error fetching batch grades for chunk, trying individual requests:`, chunkError);
-          
-          // إذا فشل الطلب المجمّع، قم بالطلبات الفردية فقط لهذه المجموعة
-          for (const id of chunk) {
-            const key = `grades-${id}`;
-            
-            // استخدام الكاش إذا كان متاحًا
-            if (isCacheValid(key)) {
-              allResults = [...allResults, ...(grades.value[id] || [])];
-              continue;
-            }
-            
-            try {
-              const response = await api.get('grades/', {
-                params: { 
-                  student: id 
-                }
-              });
-              
-              const studentGrades = response.data?.results || [];
-              grades.value[id] = studentGrades;
-              lastFetch.value[key] = Date.now();
-              console.log(`Grades for student ${id} in subject 1:`, studentGrades.filter(grade => grade.subject === 1));
-              allResults = [...allResults, ...studentGrades];
-            } catch (err) {
-              console.error(`Error fetching grades for student ${id}:`, err);
-              grades.value[id] = [];
-              lastFetch.value[key] = Date.now();
-            }
-          }
+          const studentGrades = response.data?.results || [];
+          grades.value[studentId] = studentGrades;
+          lastFetch.value[key] = Date.now();
+          allResults = [...allResults, ...studentGrades];
+        } catch (err) {
+          console.error(`Error fetching grades for student ${studentId}:`, err);
+          grades.value[studentId] = [];
+          lastFetch.value[key] = Date.now();
         }
       }
       
@@ -252,7 +226,6 @@ export const useGradesStore = defineStore('grades', () => {
           const studentGrades = response.data?.results || [];
           grades.value[id] = studentGrades;
           lastFetch.value[key] = Date.now();
-          console.log(`Grades for student ${id} in subject 1:`, studentGrades.filter(grade => grade.subject === 1));
           results.push(...studentGrades);
         } catch (err) {
           console.error(`Error fetching grades for student ${id}:`, err);

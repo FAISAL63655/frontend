@@ -229,294 +229,350 @@
       </v-card-text>
     </v-card>
 
-    <!-- جدول الطلاب المحسن -->
-    <v-card class="student-grades-table-card elevation-2">
-      <v-toolbar :color="$vuetify.theme.dark ? 'blue-darken-4' : 'blue-lighten-5'" density="compact" class="rounded-t-lg">
-        <v-toolbar-title>
-          <div class="d-flex align-center">
-            <v-icon start class="me-2">mdi-account-group</v-icon>
-            <span>قائمة الطلاب</span>
-          </div>
-        </v-toolbar-title>
+    <!-- جدول الطلاب وبياناتهم -->
+    <v-data-table
+      v-model:items-per-page="itemsPerPage"
+      :headers="headers"
+      :items="students"
+      class="elevation-1 rounded mt-2"
+      :loading="loading"
+      loading-text="جاري تحميل البيانات..."
+    >
+      <!-- الرسالة التي تظهر عند عدم وجود بيانات -->
+      <template v-slot:no-data>
+        <div v-if="errorLoading" class="d-flex flex-column align-center my-5 red--text">
+          <v-icon color="error" size="48">mdi-alert-circle</v-icon>
+          <p class="mt-2">{{ errorMessage }}</p>
+          <v-btn color="primary" @click="fetchStudents">إعادة المحاولة</v-btn>
+        </div>
+        <div v-else class="d-flex flex-column align-center my-5">
+          <v-icon color="info" size="48">mdi-information</v-icon>
+          <p class="mt-2">اختر الصف والشعبة والمادة لعرض الطلاب</p>
+        </div>
+      </template>
+
+      <!-- Show loading state for different operations -->
+      <template v-slot:progress>
+        <v-progress-linear
+          color="primary"
+          indeterminate
+          absolute
+          height="4"
+        ></v-progress-linear>
+      </template>
+
+      <!-- عرض صورة الطالب -->
+      <template v-slot:item.image="{ item }">
+        <v-avatar size="40" :color="!item.image ? 'primary' : undefined">
+          <img v-if="item.image" :src="item.image" alt="Student" />
+          <span v-else class="white--text">{{ getInitials(item.name) }}</span>
+        </v-avatar>
+      </template>
+
+      <!-- Name Column -->
+      <template #[`item.name`]="{ item }">
+        <a href="#" @click.prevent="openStudentDetails(item)">{{ item.name }}</a>
+      </template>
+
+      <!-- Theory Column -->
+      <template #[`item.theory`]="{ item }">
+        <div class="d-flex align-center">
+          <v-text-field
+            v-model="item.theory"
+            density="compact"
+            variant="outlined"
+            hide-details
+            type="number"
+            min="0"
+            max="15"
+            style="width: 70px"
+            @update:model-value="saveGrade(item, 'theory')"
+          ></v-text-field>
+        </div>
+      </template>
+
+      <!-- Practical Column (Oral) -->
+      <template #[`item.practical`]="{ item }">
+        <div class="d-flex align-center">
+          <v-text-field
+            v-model="item.practical"
+            density="compact"
+            variant="outlined"
+            hide-details
+            type="number"
+            min="0"
+            max="5"
+            style="width: 70px"
+            @update:model-value="saveGrade(item, 'practical')"
+          ></v-text-field>
+        </div>
+      </template>
+
+      <!-- Homework Column -->
+      <template #[`item.homework`]="{ item }">
+        <div class="d-flex align-center">
+          <v-text-field
+            v-model="item.homework"
+            density="compact"
+            variant="outlined"
+            hide-details
+            type="number"
+            min="0"
+            max="10"
+            style="width: 70px"
+            @update:model-value="saveGrade(item, 'homework')"
+          ></v-text-field>
+        </div>
+      </template>
+
+      <!-- Participation Column -->
+      <template #[`item.participation`]="{ item }">
+        <div class="d-flex align-center">
+          <v-text-field
+            v-model="item.participation"
+            density="compact"
+            variant="outlined"
+            hide-details
+            type="number"
+            min="0"
+            max="10"
+            style="width: 70px"
+            @update:model-value="saveGrade(item, 'participation')"
+          ></v-text-field>
+        </div>
+      </template>
+
+      <!-- Final Column -->
+      <template #[`item.final`]="{ item }">
+        <div class="d-flex align-center">
+          <v-text-field
+            v-model="item.final"
+            density="compact"
+            variant="outlined"
+            hide-details
+            type="number"
+            min="0"
+            max="40"
+            style="width: 70px"
+            @update:model-value="saveGrade(item, 'final')"
+          ></v-text-field>
+        </div>
+      </template>
+
+      <!-- Quran Column -->
+      <template #[`item.quran`]="{ item }">
+        <div class="d-flex align-center">
+          <v-text-field
+            v-model="item.quran"
+            density="compact"
+            variant="outlined"
+            hide-details
+            type="number"
+            min="0"
+            max="20"
+            style="width: 70px"
+            @update:model-value="saveGrade(item, 'quran')"
+          ></v-text-field>
+        </div>
+      </template>
+
+      <!-- Total Column -->
+      <template #[`item.total`]="{ item }">
+        <strong>{{ calculateTotal(item) }}</strong>
+      </template>
+
+      <!-- Attendance Column -->
+      <template #[`item.attendance`]="{ item }">
+        <v-btn-toggle v-model="item.attendance" mandatory>
+          <v-btn
+            :value="'present'"
+            :color="item.attendance === 'present' ? 'success' : ''"
+            icon="mdi-check"
+            size="small"
+            @click="saveAttendance(item, 'present')"
+          ></v-btn>
+          <v-btn
+            :value="'absent'"
+            :color="item.attendance === 'absent' ? 'error' : ''"
+            icon="mdi-close"
+            size="small"
+            @click="saveAttendance(item, 'absent')"
+          ></v-btn>
+        </v-btn-toggle>
+      </template>
+
+      <!-- Assignments Column -->
+      <template #[`item.assignments`]="{ item }">
+        <div class="d-flex align-center">
+          <v-btn-toggle v-model="item.assignmentStatus" mandatory :disabled="!currentAssignment">
+            <v-btn
+              :value="'submitted'"
+              :color="item.assignmentStatus === 'submitted' ? 'success' : ''"
+              icon="mdi-check"
+              size="small"
+              @click="saveAssignmentSubmission(item, 'submitted')"
+            ></v-btn>
+            <v-btn
+              :value="'not_submitted'"
+              :color="item.assignmentStatus === 'not_submitted' ? 'error' : ''"
+              icon="mdi-close"
+              size="small"
+              @click="saveAssignmentSubmission(item, 'not_submitted')"
+            ></v-btn>
+          </v-btn-toggle>
+          <v-icon
+            v-if="currentAssignment"
+            color="warning"
+            size="small"
+            class="ms-2"
+            icon="mdi-star"
+            title="هناك واجب يحتاج إلى تسليم"
+          ></v-icon>
+        </div>
+      </template>
+
+      <!-- Notes Column -->
+      <template #[`item.notes`]="{ item }">
+        <div>
+          <v-btn
+            :color="item.noteType === 'positive' ? 'success' : item.noteType === 'negative' ? 'error' : 'grey'"
+            icon="mdi-note-text"
+            size="small"
+            @click="noteMenuOpen[item.id] = !noteMenuOpen[item.id]"
+          ></v-btn>
+
+          <v-dialog
+            v-model="noteMenuOpen[item.id]"
+            max-width="400px"
+            persistent
+          >
+            <v-card>
+              <v-card-title>ملاحظات الطالب: {{ item.name }}</v-card-title>
+              <v-card-text>
+                <v-textarea
+                  v-model="item.noteContent"
+                  label="أضف ملاحظة"
+                  rows="3"
+                  autofocus
+                ></v-textarea>
+                <v-radio-group v-model="item.noteType" inline>
+                  <v-radio label="إيجابية" value="positive"></v-radio>
+                  <v-radio label="سلبية" value="negative"></v-radio>
+                </v-radio-group>
+              </v-card-text>
+              <v-card-actions>
+                <v-spacer></v-spacer>
+                <v-btn color="error" @click="noteMenuOpen[item.id] = false">إلغاء</v-btn>
+                <v-btn color="primary" @click="saveNote(item); noteMenuOpen[item.id] = false">حفظ</v-btn>
+              </v-card-actions>
+            </v-card>
+          </v-dialog>
+        </div>
+      </template>
+    </v-data-table>
+
+    <!-- عرض مكون تحميل الجدول -->
+    <v-overlay v-model="loadingStudents" class="align-center justify-center">
+      <v-progress-circular
+        indeterminate
+        size="64"
+        color="primary"
+      ></v-progress-circular>
+      <div class="mt-3 text-center">
+        <p>جاري تحميل بيانات الطلاب...</p>
+      </div>
+    </v-overlay>
+
+    <!-- عرض مكون تحميل الدرجات -->
+    <v-overlay v-model="loadingGrades" class="align-center justify-center">
+      <v-progress-circular
+        indeterminate
+        size="64"
+        color="primary"
+      ></v-progress-circular>
+      <div class="mt-3 text-center">
+        <p>جاري تحميل درجات الطلاب...</p>
+      </div>
+    </v-overlay>
+
+    <!-- قسم الواجبات -->
+    <v-card v-if="currentAssignment" class="mt-4 elevation-1 rounded">
+      <v-card-title class="d-flex justify-space-between">
+        <div>
+          <span class="primary--text">الواجب الحالي:</span> {{ currentAssignment.title }}
+        </div>
+        <div>
+          <v-btn 
+            color="primary" 
+            text 
+            @click="showCreateAssignmentDialog = true"
+            :disabled="loadingAssignment"
+          >
+            <v-icon left>mdi-plus</v-icon>
+            واجب جديد
+          </v-btn>
+          <v-btn 
+            color="secondary" 
+            text 
+            @click="showAssignmentList = true"
+            :disabled="loadingAssignment"
+          >
+            <v-icon left>mdi-format-list-bulleted</v-icon>
+            قائمة الواجبات
+          </v-btn>
+        </div>
+      </v-card-title>
+      <v-card-subtitle>
+        {{ currentAssignment.description }}
+        <v-chip class="ma-1" size="small" color="primary" v-if="currentAssignment.due_date">
+          <v-icon left size="small">mdi-calendar</v-icon>
+          {{ formatDate(currentAssignment.due_date) }}
+        </v-chip>
+      </v-card-subtitle>
+
+      <v-overlay v-model="loadingAssignment" contained>
+        <v-progress-circular indeterminate size="64" color="primary"></v-progress-circular>
+        <div class="mt-3 text-center">
+          <p>جاري تحميل بيانات الواجب...</p>
+        </div>
+      </v-overlay>
+
+      <!-- بقية كود قسم الواجبات -->
+    </v-card>
+
+    <!-- أزرار التنقل بين الصفحات -->
+    <div class="d-flex flex-column align-center pa-4 rounded-b-lg" :class="{'bg-blue-lighten-5': !$vuetify.theme.dark, 'bg-blue-darken-4': $vuetify.theme.dark}">
+      <v-pagination
+        v-model="currentPage"
+        :length="pageCount"
+        :total-visible="5"
+        rounded="circle"
+        color="primary"
+        @click:prev="prevPage"
+        @click:next="nextPage"
+      ></v-pagination>
+
+      <div class="d-flex align-center mt-2">
+        <span class="me-4">عناصر في الصفحة:</span>
+        <v-btn-toggle
+          v-model="itemsPerPage"
+          mandatory
+          density="comfortable"
+          color="primary"
+        >
+          <v-btn value="5">5</v-btn>
+          <v-btn value="10">10</v-btn>
+          <v-btn value="15">15</v-btn>
+          <v-btn value="-1">الكل</v-btn>
+        </v-btn-toggle>
 
         <v-spacer></v-spacer>
 
-        <v-text-field
-          v-model="search"
-          prepend-inner-icon="mdi-magnify"
-          label="بحث"
-          single-line
-          hide-details
-          density="compact"
-          :bg-color="$vuetify.theme.dark ? 'grey-darken-3' : 'white'"
-          class="mx-2"
-          style="max-width: 250px;"
-        ></v-text-field>
-      </v-toolbar>
-
-      <v-data-table
-        :headers="headers"
-        :items="students"
-        :search="search"
-        :items-per-page="itemsPerPage"
-        :page="currentPage"
-        @update:page="currentPage = $event"
-        @update:items-per-page="itemsPerPage = $event"
-        class="elevation-0 student-data-table"
-        item-value="id"
-        hover
-        :loading="loading"
-        loading-text="جاري تحميل بيانات الطلاب..."
-      >
-        <!-- Image Column -->
-        <template #[`item.image`]="{ item }">
-          <v-avatar size="40" class="elevation-1" :color="item.image ? undefined : getAvatarColor(item.name)" :style="{'border': '2px solid ' + ($vuetify.theme.dark ? '#333333' : '#f5f5f5')}">
-            <v-img
-              v-if="item.image"
-              :src="item.image"
-              alt="Student"
-              cover
-              @error="handleImageError(item)"
-            ></v-img>
-            <span v-else class="text-subtitle-2 text-white">{{ getInitials(item.name) }}</span>
-          </v-avatar>
-        </template>
-
-        <!-- Name Column -->
-        <template #[`item.name`]="{ item }">
-          <a href="#" @click.prevent="openStudentDetails(item)">{{ item.name }}</a>
-        </template>
-
-        <!-- Theory Column -->
-        <template #[`item.theory`]="{ item }">
-          <div class="d-flex align-center">
-            <v-text-field
-              v-model="item.theory"
-              density="compact"
-              variant="outlined"
-              hide-details
-              type="number"
-              min="0"
-              max="15"
-              style="width: 70px"
-              @update:model-value="saveGrade(item, 'theory')"
-            ></v-text-field>
-          </div>
-        </template>
-
-        <!-- Practical Column (Oral) -->
-        <template #[`item.practical`]="{ item }">
-          <div class="d-flex align-center">
-            <v-text-field
-              v-model="item.practical"
-              density="compact"
-              variant="outlined"
-              hide-details
-              type="number"
-              min="0"
-              max="5"
-              style="width: 70px"
-              @update:model-value="saveGrade(item, 'practical')"
-            ></v-text-field>
-          </div>
-        </template>
-
-        <!-- Homework Column -->
-        <template #[`item.homework`]="{ item }">
-          <div class="d-flex align-center">
-            <v-text-field
-              v-model="item.homework"
-              density="compact"
-              variant="outlined"
-              hide-details
-              type="number"
-              min="0"
-              max="10"
-              style="width: 70px"
-              @update:model-value="saveGrade(item, 'homework')"
-            ></v-text-field>
-          </div>
-        </template>
-
-        <!-- Participation Column -->
-        <template #[`item.participation`]="{ item }">
-          <div class="d-flex align-center">
-            <v-text-field
-              v-model="item.participation"
-              density="compact"
-              variant="outlined"
-              hide-details
-              type="number"
-              min="0"
-              max="10"
-              style="width: 70px"
-              @update:model-value="saveGrade(item, 'participation')"
-            ></v-text-field>
-          </div>
-        </template>
-
-        <!-- Final Column -->
-        <template #[`item.final`]="{ item }">
-          <div class="d-flex align-center">
-            <v-text-field
-              v-model="item.final"
-              density="compact"
-              variant="outlined"
-              hide-details
-              type="number"
-              min="0"
-              max="40"
-              style="width: 70px"
-              @update:model-value="saveGrade(item, 'final')"
-            ></v-text-field>
-          </div>
-        </template>
-
-        <!-- Quran Column -->
-        <template #[`item.quran`]="{ item }">
-          <div class="d-flex align-center">
-            <v-text-field
-              v-model="item.quran"
-              density="compact"
-              variant="outlined"
-              hide-details
-              type="number"
-              min="0"
-              max="20"
-              style="width: 70px"
-              @update:model-value="saveGrade(item, 'quran')"
-            ></v-text-field>
-          </div>
-        </template>
-
-        <!-- Total Column -->
-        <template #[`item.total`]="{ item }">
-          <strong>{{ calculateTotal(item) }}</strong>
-        </template>
-
-        <!-- Attendance Column -->
-        <template #[`item.attendance`]="{ item }">
-          <v-btn-toggle v-model="item.attendance" mandatory>
-            <v-btn
-              :value="'present'"
-              :color="item.attendance === 'present' ? 'success' : ''"
-              icon="mdi-check"
-              size="small"
-              @click="saveAttendance(item, 'present')"
-            ></v-btn>
-            <v-btn
-              :value="'absent'"
-              :color="item.attendance === 'absent' ? 'error' : ''"
-              icon="mdi-close"
-              size="small"
-              @click="saveAttendance(item, 'absent')"
-            ></v-btn>
-          </v-btn-toggle>
-        </template>
-
-        <!-- Assignments Column -->
-        <template #[`item.assignments`]="{ item }">
-          <div class="d-flex align-center">
-            <v-btn-toggle v-model="item.assignmentStatus" mandatory :disabled="!currentAssignment">
-              <v-btn
-                :value="'submitted'"
-                :color="item.assignmentStatus === 'submitted' ? 'success' : ''"
-                icon="mdi-check"
-                size="small"
-                @click="saveAssignmentSubmission(item, 'submitted')"
-              ></v-btn>
-              <v-btn
-                :value="'not_submitted'"
-                :color="item.assignmentStatus === 'not_submitted' ? 'error' : ''"
-                icon="mdi-close"
-                size="small"
-                @click="saveAssignmentSubmission(item, 'not_submitted')"
-              ></v-btn>
-            </v-btn-toggle>
-            <v-icon
-              v-if="currentAssignment"
-              color="warning"
-              size="small"
-              class="ms-2"
-              icon="mdi-star"
-              title="هناك واجب يحتاج إلى تسليم"
-            ></v-icon>
-          </div>
-        </template>
-
-        <!-- Notes Column -->
-        <template #[`item.notes`]="{ item }">
-          <div>
-            <v-btn
-              :color="item.noteType === 'positive' ? 'success' : item.noteType === 'negative' ? 'error' : 'grey'"
-              icon="mdi-note-text"
-              size="small"
-              @click="noteMenuOpen[item.id] = !noteMenuOpen[item.id]"
-            ></v-btn>
-
-            <v-dialog
-              v-model="noteMenuOpen[item.id]"
-              max-width="400px"
-              persistent
-            >
-              <v-card>
-                <v-card-title>ملاحظات الطالب: {{ item.name }}</v-card-title>
-                <v-card-text>
-                  <v-textarea
-                    v-model="item.noteContent"
-                    label="أضف ملاحظة"
-                    rows="3"
-                    autofocus
-                  ></v-textarea>
-                  <v-radio-group v-model="item.noteType" inline>
-                    <v-radio label="إيجابية" value="positive"></v-radio>
-                    <v-radio label="سلبية" value="negative"></v-radio>
-                  </v-radio-group>
-                </v-card-text>
-                <v-card-actions>
-                  <v-spacer></v-spacer>
-                  <v-btn color="error" @click="noteMenuOpen[item.id] = false">إلغاء</v-btn>
-                  <v-btn color="primary" @click="saveNote(item); noteMenuOpen[item.id] = false">حفظ</v-btn>
-                </v-card-actions>
-              </v-card>
-            </v-dialog>
-          </div>
-        </template>
-      </v-data-table>
-      <!-- أزرار التنقل بين الصفحات -->
-      <div class="d-flex flex-column align-center pa-4 rounded-b-lg" :class="{'bg-blue-lighten-5': !$vuetify.theme.dark, 'bg-blue-darken-4': $vuetify.theme.dark}">
-        <v-pagination
-          v-model="currentPage"
-          :length="pageCount"
-          :total-visible="5"
-          rounded="circle"
-          color="primary"
-          @click:prev="prevPage"
-          @click:next="nextPage"
-        ></v-pagination>
-
-        <div class="d-flex align-center mt-2">
-          <span class="me-4">عناصر في الصفحة:</span>
-          <v-btn-toggle
-            v-model="itemsPerPage"
-            mandatory
-            density="comfortable"
-            color="primary"
-          >
-            <v-btn value="5">5</v-btn>
-            <v-btn value="10">10</v-btn>
-            <v-btn value="15">15</v-btn>
-            <v-btn value="-1">الكل</v-btn>
-          </v-btn-toggle>
-
-          <v-spacer></v-spacer>
-
-          <div class="text-body-2">
-            عرض {{ paginationStart }} - {{ paginationEnd }} من {{ students.length }}
-          </div>
+        <div class="text-body-2">
+          عرض {{ paginationStart }} - {{ paginationEnd }} من {{ students.length }}
         </div>
       </div>
-    </v-card>
+    </div>
 
     <!-- Add Assignment Dialog -->
     <v-dialog v-model="showAddAssignmentDialog" max-width="500px" dir="rtl">
@@ -879,6 +935,80 @@
       :student-name="encouragementStudent.name"
       :student-image="encouragementStudent.image"
     />
+
+    <!-- الرسالة عند عدم وجود واجب -->
+    <v-card v-if="!currentAssignment && selectedSubject" class="mt-4 elevation-1 rounded">
+      <v-card-title class="text-center">
+        <v-icon color="info" class="me-2">mdi-information</v-icon>
+        لا يوجد واجبات حالية
+      </v-card-title>
+      <v-card-text class="text-center">
+        <p>لا توجد واجبات للمادة المختارة حاليًا</p>
+        <v-btn 
+          color="primary" 
+          class="mt-3" 
+          @click="showCreateAssignmentDialog = true"
+          :loading="loadingAssignment"
+        >
+          <v-icon start>mdi-plus</v-icon>
+          إضافة واجب جديد
+        </v-btn>
+      </v-card-text>
+    </v-card>
+
+    <!-- تحسين عرض نتائج الدرجات والحضور -->
+    <v-snackbar
+      v-model="snackbar.show"
+      :color="snackbar.color"
+      timeout="3000"
+      top
+      right
+    >
+      <div class="d-flex align-center">
+        <v-icon class="me-2" v-if="snackbar.color === 'success'">mdi-check-circle</v-icon>
+        <v-icon class="me-2" v-else-if="snackbar.color === 'error'">mdi-alert-circle</v-icon>
+        <v-icon class="me-2" v-else>mdi-information</v-icon>
+        {{ snackbar.text }}
+      </div>
+      <template v-slot:actions>
+        <v-btn
+          variant="text"
+          @click="snackbar.show = false"
+        >
+          إغلاق
+        </v-btn>
+      </template>
+    </v-snackbar>
+
+    <!-- تحسين نافذة تأكيد الحذف -->
+    <v-dialog v-model="confirmDialog.show" max-width="500px">
+      <v-card>
+        <v-card-title :class="`pa-4 ${confirmDialog.color} white--text`">
+          <v-icon color="white" class="me-2">{{ confirmDialog.icon }}</v-icon>
+          {{ confirmDialog.title }}
+        </v-card-title>
+        <v-card-text class="pa-4">
+          {{ confirmDialog.message }}
+        </v-card-text>
+        <v-card-actions class="pa-4">
+          <v-spacer></v-spacer>
+          <v-btn
+            color="grey darken-1"
+            text
+            @click="confirmDialog.show = false"
+          >
+            إلغاء
+          </v-btn>
+          <v-btn
+            :color="confirmDialog.color"
+            :loading="confirmDialog.loading"
+            @click="confirmDialog.confirm"
+          >
+            تأكيد
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </div>
 </template>
 
@@ -1223,6 +1353,11 @@ const gradesStore = useGradesStore()
 
 // مؤشرات التحميل
 const loading = ref(false)
+const loadingStudents = ref(false)
+const loadingGrades = ref(false)
+const loadingAssignment = ref(false)
+const errorLoading = ref(false)
+const errorMessage = ref('')
 
 // Fetch students based on selected class and section
 const fetchStudents = async () => {
@@ -1231,6 +1366,9 @@ const fetchStudents = async () => {
   try {
     // تفعيل مؤشر التحميل
     loading.value = true
+    loadingStudents.value = true
+    errorLoading.value = false
+    errorMessage.value = ''
 
     const studentsTimerLabel = `fetchStudents-${Date.now()}`
     console.time(studentsTimerLabel)
@@ -1290,180 +1428,90 @@ const fetchStudents = async () => {
     console.time(gradesTimerLabel)
 
     // جلب الدرجات عبر المخزن بطريقة محسنة
+    loadingGrades.value = true
     await gradesStore.fetchGradesForStudents(studentIds)
     console.timeEnd(gradesTimerLabel)
 
     // Procesar las calificaciones para cada estudiante
-    for (const student of studentsWithGrades) {
-      try {
-        // Obtener las calificaciones del estudiante del store
-        const studentGrades = gradesStore.getGradesByStudent(student.id) || []
+    const processedStudents = studentsWithGrades.map(student => {
+      const studentGrades = gradesStore.getGradesByStudent.value(student.id)
 
-        // Filtrar las calificaciones para la materia seleccionada
-        const subjectGrades = studentGrades.filter(grade => grade.subject === selectedSubject.value)
-        console.log(`Grades for student ${student.id} in subject ${selectedSubject.value}:`, subjectGrades)
-
-        // Asignar las calificaciones al estudiante
-        if (subjectGrades.length > 0) {
-          for (const grade of subjectGrades) {
-            if (grade.type === 'theory') {
-              student.theory = grade.score
-            } else if (grade.type === 'practical') {
-              // التحقق من قيمة max_score للتمييز بين الشفوي والواجبات
-              if (grade.max_score === 10) {
-                // هذه درجة واجبات
-                student.homework = grade.score
-              } else {
-                // هذه درجة شفوي
-                student.practical = grade.score
-              }
-            } else if (grade.type === 'participation') {
-              student.participation = grade.score
-            } else if (grade.type === 'quran') {
-              student.quran = grade.score
-            } else if (grade.type === 'final') {
-              student.final = grade.score
-            }
-          }
+      // Encontrar calificaciones para el sujeto actual
+      const subjectGrades = studentGrades.filter(grade => {
+        if (isSubSubject) {
+          // Para submaterias, buscar por ID exacto
+          return grade.subject === selectedSubject.value
+        } else {
+          // Para materias principales, buscar por ID o si es una submateria que pertenece a esta materia
+          const gradeSubject = subjects.value.find(s => s.id === grade.subject)
+          return grade.subject === selectedSubject.value || (gradeSubject && gradeSubject.parent_subject === selectedSubject.value)
         }
+      })
 
-        // Si es una materia secundaria, obtener calificaciones de la materia principal
-        if (isSubSubject && selectedSubjectObj.parent_subject) {
-          const parentSubjectGrades = studentGrades.filter(grade => grade.subject === selectedSubjectObj.parent_subject)
-          console.log(`Parent subject grades for student ${student.id}:`, parentSubjectGrades)
+      // Procesar las calificaciones por tipo
+      let theory = null, practical = null, homework = null, participation = null, quran = null, final = null, total = null
 
-          if (parentSubjectGrades.length > 0) {
-            for (const grade of parentSubjectGrades) {
-              if (grade.type === 'theory' && student.theory === null) {
-                student.theory = grade.score
-              } else if (grade.type === 'practical') {
-                // التحقق من قيمة max_score للتمييز بين الشفوي والواجبات
-                if (grade.max_score === 10 && student.homework === null) {
-                  // هذه درجة واجبات
-                  student.homework = grade.score
-                } else if (grade.max_score !== 10 && student.practical === null) {
-                  // هذه درجة شفوي
-                  student.practical = grade.score
-                }
-              } else if (grade.type === 'participation' && student.participation === null) {
-                student.participation = grade.score
-              } else if (grade.type === 'quran' && student.quran === null) {
-                student.quran = grade.score
-              } else if (grade.type === 'final' && student.final === null) {
-                student.final = grade.score
-              }
-            }
-          }
+      subjectGrades.forEach(grade => {
+        console.log(`Grade for student ${student.name}:`, grade)
+        switch (grade.grade_type) {
+          case 'theory':
+            theory = grade.score
+            break
+          case 'practical':
+            practical = grade.score
+            break
+          case 'homework':
+            homework = grade.score
+            break
+          case 'participation':
+            participation = grade.score
+            break
+          case 'quran':
+            quran = grade.score
+            break
+          case 'final':
+            final = grade.score
+            break
         }
+      })
 
-        // جلب حالة الحضور للطالب
-        try {
-          // استخدام التاريخ المحدد أو التاريخ الحالي إذا لم يتم تحديد تاريخ
-          const dateToCheck = selectedDate.value || new Date().toISOString().split('T')[0]
-
-          // Asegurarse de que attendance.value esté inicializado
-          if (!gradesStore.attendance.value) {
-            gradesStore.attendance.value = {}
-          }
-
-          // Crear un registro de asistencia por defecto para este estudiante
-          const attendanceKey = `${student.id}-${dateToCheck}`
-          if (!gradesStore.attendance.value[attendanceKey]) {
-            gradesStore.attendance.value[attendanceKey] = {
-              student: student.id,
-              date: dateToCheck,
-              status: 'present' // Valor por defecto
-            }
-          }
-
-          // Obtener la asistencia del store
-          if (!gradesStore.attendance.value[`${student.id}-${dateToCheck}`]) {
-            // Si no está en caché, cargar la asistencia para toda la clase
-            if (Object.keys(gradesStore.attendance.value).length === 0) {
-              await gradesStore.fetchAttendanceForDate(dateToCheck, selectedClass.value, selectedSection.value)
-            }
-          }
-
-          // Obtener la asistencia del estudiante para la fecha seleccionada
-          try {
-            const dateAttendance = gradesStore.getAttendanceByStudentAndDate(student.id, dateToCheck)
-
-            if (dateAttendance) {
-              // تعيين حالة الحضور
-              student.attendance = dateAttendance.status
-              console.log(`Found attendance for student ${student.id} on ${dateToCheck}: ${dateAttendance.status}`)
-            } else {
-              // إذا لم يتم العثور على سجل حضور، نعين الحالة إلى حاضر افتراضيًا
-              student.attendance = 'present'
-              console.log(`No attendance found for student ${student.id} on ${dateToCheck}, setting to default 'present'`)
-            }
-          } catch (attendanceError) {
-            console.error(`Error fetching attendance for student ${student.id}:`, attendanceError)
-            student.attendance = 'present' // Valor por defecto en caso de error
-          }
-        } catch (attendanceError) {
-          console.error(`Error fetching attendance for student ${student.id}:`, attendanceError)
-          student.attendance = 'present' // Valor por defecto en caso de error
-        }
-
-        // جلب تسليمات الواجبات للطالب
-        if (currentAssignment.value) {
-          try {
-            // Obtener las entregas del store
-            const assignmentId = currentAssignment.value.id
-
-            // Si no están en caché, cargar las entregas para toda الصف
-            if (Object.keys(gradesStore.submissions.value).filter(key => key.includes(`-${assignmentId}`)).length === 0) {
-              await gradesStore.fetchSubmissionsForAssignment(assignmentId, studentIds)
-            }
-
-            // Obtener la entrega del estudiante para la tarea actual
-            try {
-              const existingSubmission = gradesStore.getSubmissionsByStudentAndAssignment(student.id, assignmentId)
-
-              if (existingSubmission) {
-                // تعيين حالة تسليم الواجب
-                student.assignmentStatus = existingSubmission.status
-              }
-            } catch (submissionError) {
-              console.error(`Error getting submission for student ${student.id}:`, submissionError)
-              // Usar valor por defecto
-              student.assignmentStatus = 'not_submitted'
-            }
-          } catch (submissionError) {
-            console.error(`Error fetching assignment submissions for student ${student.id}:`, submissionError)
-          }
-        }
-
-        // استرجاع حالة تسليم الواجب من التخزين المحلي
-        try {
-          if (currentAssignment.value) {
-            const assignmentSubmissions = JSON.parse(localStorage.getItem('assignmentSubmissions') || '{}')
-            const key = `${student.id}-${currentAssignment.value.id}`
-
-            if (assignmentSubmissions[key]) {
-              student.assignmentStatus = assignmentSubmissions[key]
-              console.log(`Setting assignment status for student ${student.id} to ${assignmentSubmissions[key]} from localStorage`)
-            }
-          }
-        } catch (storageError) {
-          console.error('Error loading from localStorage:', storageError)
-        }
-      } catch (error) {
-        console.error(`Error processing student ${student.id}:`, error)
+      // Calcular puntuación total si hay calificaciones
+      if (theory !== null || practical !== null || homework !== null || participation !== null || quran !== null || final !== null) {
+        total = 0
+        
+        // Sólo sumar los valores que no son null
+        if (theory !== null) total += theory
+        if (practical !== null) total += practical
+        if (homework !== null) total += homework
+        if (participation !== null) total += participation
+        if (quran !== null) total += quran
+        if (final !== null) total += final
       }
-    }
 
-    students.value = studentsWithGrades
+      return {
+        ...student,
+        theory,
+        practical,
+        homework,
+        participation,
+        quran,
+        final,
+        total
+      }
+    })
 
-    // تحديث حالة الواجبات بعد جلب الطلاب
-    updateAssignmentStatus()
-
+    students.value = processedStudents
     console.timeEnd(studentsTimerLabel)
   } catch (error) {
-    console.error('Error fetching students or grades:', error)
+    console.error('Error fetching students:', error)
+    errorLoading.value = true
+    errorMessage.value = 'حدث خطأ أثناء تحميل بيانات الطلاب. يرجى المحاولة مرة أخرى.'
+    if (error.response) {
+      console.error('Error response data:', error.response.data)
+    }
   } finally {
-    // إيقاف مؤشر التحميل بعد انتهاء العملية
+    loadingStudents.value = false
+    loadingGrades.value = false
     loading.value = false
   }
 }
@@ -2428,38 +2476,29 @@ const fetchCurrentAssignment = async () => {
   if (!selectedSubject.value) return
 
   try {
-    const assignmentsTimerLabel = `fetchAssignments-${selectedSubject.value}-${Date.now()}`
-    console.time(assignmentsTimerLabel)
+    loadingAssignment.value = true
 
-    // Usar el store para obtener las asignaciones
-    const assignmentsData = await gradesStore.fetchAssignmentsBySubject(selectedSubject.value)
-    console.timeEnd(assignmentsTimerLabel)
+    const assignments = await gradesStore.fetchAssignmentsBySubject(selectedSubject.value)
+    console.log('Fetched assignments:', assignments)
 
-    console.log('Fetched assignments for subject:', selectedSubject.value, assignmentsData)
+    if (assignments && assignments.length > 0) {
+      // Get first assignment by default
+      currentAssignment.value = assignments[0]
+      console.log('Current assignment:', currentAssignment.value)
 
-    // تحديث قائمة الواجبات
-    assignments.value = assignmentsData || []
-
-    // التحقق من وجود واجبات
-    if (assignments.value.length > 0) {
-      // تعيين الواجب الحالي إلى أحدث واجب
-      currentAssignment.value = assignments.value[0]
-      console.log('Current assignment set to:', currentAssignment.value)
+      // Cargar las entregas para esta tarea
+      if (students.value.length > 0) {
+        const studentIds = students.value.map(s => s.id)
+        await gradesStore.fetchSubmissionsForAssignment(currentAssignment.value.id, studentIds)
+      }
     } else {
-      // إذا لم يتم العثور على واجبات، تعيين الواجب الحالي إلى null
       currentAssignment.value = null
-      console.log('No assignments found for the selected subject')
     }
-
-    // تحديث حالة تسليم الواجبات للطلاب
-    updateAssignmentStatus()
   } catch (error) {
-    console.error('Error fetching assignments:', error)
-    if (error.response) {
-      console.error('Error response data:', error.response.data)
-    }
-    assignments.value = []
+    console.error('Error fetching current assignment:', error)
     currentAssignment.value = null
+  } finally {
+    loadingAssignment.value = false
   }
 }
 
