@@ -32,43 +32,40 @@
     <div class="wheel-pointer">
       <v-icon icon="mdi-triangle" color="error" size="x-large"></v-icon>
     </div>
-    <!-- نافذة النتيجة -->
-    <v-dialog
-      v-model="showResult"
-      max-width="500"
-      persistent
-    >
-      <v-card class="result-card elevation-10">
-        <v-card-title class="text-center d-block pa-4 bg-primary text-white">
-          <v-icon size="large" class="mb-2">mdi-trophy</v-icon>
-          <h2 class="text-h4 font-weight-bold">تم الاختيار!</h2>
+    <!-- عرض الطالب المختار تحت العجلة -->
+    <div v-if="selectedItem && !isSpinning" class="selected-student-container mt-4 pa-4">
+      <v-card class="result-card elevation-5" color="surface">
+        <v-card-title class="text-center d-block pa-3 bg-primary text-white">
+          <v-icon size="large" class="mb-1">mdi-trophy</v-icon>
+          <h2 class="text-h5 font-weight-bold">تم الاختيار!</h2>
         </v-card-title>
 
-        <v-card-text class="text-center pa-6" v-if="selectedItem">
-          <div class="student-image-container mb-4">
-            <v-avatar size="150" class="student-avatar" :color="getAvatarColor(selectedItem.name)">
+        <v-card-text class="text-center pa-4">
+          <div class="student-image-container mb-3">
+            <v-avatar size="120" class="student-avatar" :color="getAvatarColor(selectedItem.name)">
               <v-img v-if="selectedItem.image" :src="selectedItem.image" :alt="selectedItem.name" cover></v-img>
-              <span v-else class="text-h3 text-white">{{ getInitials(selectedItem.name) }}</span>
+              <span v-else class="text-h4 text-white">{{ getInitials(selectedItem.name) }}</span>
             </v-avatar>
           </div>
-          <h2 class="text-h3 font-weight-bold primary--text">{{ selectedItem.name }}</h2>
-          <p v-if="selectedItem.class_name" class="text-subtitle-1 mt-2">
+          <h2 class="text-h4 font-weight-bold primary--text">{{ selectedItem.name }}</h2>
+          <p v-if="selectedItem.class_name" class="text-subtitle-1 mt-1">
             {{ selectedItem.class_name }} - {{ selectedItem.section }}
           </p>
         </v-card-text>
 
-        <v-card-actions class="justify-center pa-4">
+        <v-card-actions class="justify-center pa-3">
           <v-btn
             color="primary"
             size="large"
             @click="resetWheel"
+            class="px-6"
           >
             <v-icon start>mdi-refresh</v-icon>
             إعادة العجلة
           </v-btn>
         </v-card-actions>
       </v-card>
-    </v-dialog>
+    </div>
   </div>
 </template>
 
@@ -102,7 +99,6 @@ const ctx = ref(null);
 // State
 const isSpinning = ref(false);
 const selectedItem = ref(null);
-const showResult = ref(false);
 const rotationAngle = ref(0);
 const targetAngle = ref(0);
 const animationId = ref(null);
@@ -231,7 +227,6 @@ const spinWheel = () => {
   if (isSpinning.value || totalItems.value === 0) return;
 
   isSpinning.value = true;
-  showResult.value = false;
   selectedItem.value = null;
 
   // Calculate random target angle (at least 4 full rotations + random position)
@@ -304,8 +299,7 @@ const finishSpin = () => {
 
   console.log('Selected student:', selectedItem.value.name);
 
-  // Immediately show result
-  showResult.value = true;
+  // Finish spinning
   isSpinning.value = false;
 
   // Emit selected item
@@ -333,7 +327,7 @@ const finishSpin = () => {
 // Reset the wheel
 const resetWheel = () => {
   console.log('Resetting wheel');
-  showResult.value = false;
+  selectedItem.value = null;
   isSpinning.value = false;
 
   // Redraw the wheel to ensure it's visible
@@ -390,30 +384,15 @@ defineExpose({
   z-index: 5;
 }
 
-.wheel-result {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  background-color: rgba(0, 0, 0, 0.85);
-  z-index: 999;
-}
-
-.result-content {
-  text-align: center;
-  animation: scaleIn 0.5s ease-in-out;
-  width: 90%;
+.selected-student-container {
   max-width: 400px;
+  margin: 0 auto;
 }
 
 .result-card {
   border-radius: 16px;
   overflow: hidden;
-  box-shadow: 0 0 30px rgba(0, 0, 0, 0.5), 0 0 50px rgba(var(--v-theme-primary), 0.3);
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.2), 0 0 30px rgba(var(--v-theme-primary), 0.2);
   animation: pulse 2s infinite;
   transform-origin: center;
   animation: scaleIn 0.5s ease-out;
