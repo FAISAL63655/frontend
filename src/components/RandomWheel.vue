@@ -15,6 +15,20 @@
         {{ spinButtonText }}
       </v-btn>
     </div>
+    <div class="wheel-reset" v-if="!isSpinning">
+      <v-btn
+        color="secondary"
+        size="small"
+        rounded="pill"
+        variant="outlined"
+        class="reset-button"
+        @click="resetWheel"
+        :disabled="items.length === 0"
+      >
+        <v-icon start>mdi-refresh</v-icon>
+        إعادة العجلة
+      </v-btn>
+    </div>
     <div class="wheel-pointer">
       <v-icon icon="mdi-triangle" color="error" size="x-large"></v-icon>
     </div>
@@ -360,6 +374,14 @@ defineExpose({
   z-index: 10;
 }
 
+.wheel-reset {
+  position: absolute;
+  bottom: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+}
+
 .wheel-pointer {
   position: absolute;
   top: 0;
@@ -424,6 +446,17 @@ defineExpose({
   min-height: 50px;
   font-weight: bold;
   animation: pulse 1.5s infinite;
+}
+
+.reset-button {
+  min-width: 100px;
+  font-weight: bold;
+  transition: all 0.3s ease;
+}
+
+.reset-button:hover {
+  transform: scale(1.05);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 @keyframes fadeIn {

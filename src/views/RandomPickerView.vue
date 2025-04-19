@@ -182,6 +182,57 @@
             </div>
           </v-scale-transition>
         </div>
+
+        <!-- نافذة منبثقة لعرض الطالب المختار -->
+        <v-dialog
+          v-model="showStudentDialog"
+          max-width="500"
+          persistent
+          class="student-dialog"
+        >
+          <v-card class="student-dialog-card elevation-10">
+            <v-card-title class="text-center d-block pa-4 bg-primary text-white">
+              <v-icon size="large" class="mb-2">mdi-trophy</v-icon>
+              <h2 class="text-h4 font-weight-bold">تم اختيار الطالب!</h2>
+            </v-card-title>
+
+            <v-card-text class="text-center pa-6" v-if="selectedStudent">
+              <div class="student-image-container mb-4">
+                <img
+                  :src="selectedStudent.image || 'https://cdn.vuetifyjs.com/images/john.jpg'"
+                  alt="Student"
+                  class="student-result-image"
+                >
+              </div>
+              <h2 class="text-h3 font-weight-bold primary--text">{{ selectedStudent.name }}</h2>
+              <p v-if="selectedStudent.class_name" class="text-subtitle-1 mt-2">
+                {{ selectedStudent.class_name }} - {{ selectedStudent.section }}
+              </p>
+            </v-card-text>
+
+            <v-card-actions class="justify-center pa-4">
+              <v-btn
+                color="primary"
+                size="large"
+                @click="showStudentDialog = false"
+              >
+                <v-icon start>mdi-check</v-icon>
+                موافق
+              </v-btn>
+              <v-btn
+                color="error"
+                variant="outlined"
+                size="large"
+                class="ms-2"
+                @click="excludeStudent(selectedStudent); showStudentDialog = false"
+                :disabled="isStudentExcluded(selectedStudent?.id)"
+              >
+                <v-icon start>mdi-account-cancel</v-icon>
+                استبعاد من العجلة
+              </v-btn>
+            </v-card-actions>
+          </v-card>
+        </v-dialog>
       </v-card-text>
     </v-card>
 
@@ -470,7 +521,13 @@ const wheelRef = ref(null)
 const onStudentSelected = (student) => {
   console.log('Student selected from wheel:', student)
   selectedStudent.value = student
+
+  // عرض نافذة منبثقة بعد اختيار الطالب
+  showStudentDialog.value = true
 }
+
+// حالة النافذة المنبثقة
+const showStudentDialog = ref(false)
 
 // تدوير العجلة لاختيار طالب عشوائي
 const pickRandomStudent = () => {
@@ -688,6 +745,38 @@ const addDummyData = () => {
   color: rgb(var(--v-theme-on-surface));
   margin-top: 16px;
   transition: all 0.3s ease;
+}
+
+/* تنسيقات النافذة المنبثقة */
+.student-dialog-card {
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 0 30px rgba(0, 0, 0, 0.5), 0 0 50px rgba(var(--v-theme-primary), 0.3);
+  animation: pulse 2s infinite;
+  transform-origin: center;
+  animation: scaleIn 0.5s ease-out;
+}
+
+.student-image-container {
+  width: 150px;
+  height: 150px;
+  margin: 0 auto;
+  position: relative;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+  border: 3px solid #1976d2;
+}
+
+.student-result-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.3s ease;
+}
+
+.student-image-container:hover .student-result-image {
+  transform: scale(1.05);
 }
 
 /* تنسيقات المجموعات */
