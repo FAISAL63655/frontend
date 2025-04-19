@@ -114,12 +114,9 @@
                     @click="isStudentExcluded(student.id) ? includeStudent(student) : excludeStudent(student)"
                   >
                     <div class="d-flex align-center pa-2">
-                      <v-avatar size="40" class="me-2 student-list-avatar">
-                        <v-img
-                          :src="student.image || 'https://cdn.vuetifyjs.com/images/john.jpg'"
-                          alt="Student"
-                          cover
-                        ></v-img>
+                      <v-avatar size="40" class="me-2 student-list-avatar" :color="getAvatarColor(student.name)">
+                        <v-img v-if="student.image" :src="student.image" :alt="student.name" cover></v-img>
+                        <span v-else class="text-subtitle-2 text-white">{{ getInitials(student.name) }}</span>
                       </v-avatar>
                       <div class="flex-grow-1">
                         <div class="text-subtitle-2 font-weight-medium">{{ student.name }}</div>
@@ -155,12 +152,9 @@
         <div v-if="selectedStudent" class="selected-student-container text-center py-4 mt-6">
           <v-scale-transition>
             <div>
-              <v-avatar size="180" class="mb-4 elevation-5 student-avatar">
-                <v-img
-                  :src="selectedStudent.image || 'https://cdn.vuetifyjs.com/images/john.jpg'"
-                  alt="Student"
-                  cover
-                ></v-img>
+              <v-avatar size="180" class="mb-4 elevation-5 student-avatar" :color="getAvatarColor(selectedStudent.name)">
+                <v-img v-if="selectedStudent.image" :src="selectedStudent.image" :alt="selectedStudent.name" cover></v-img>
+                <span v-else class="text-h3 text-white">{{ getInitials(selectedStudent.name) }}</span>
               </v-avatar>
               <h2 class="text-h3 font-weight-bold mb-2 student-name">{{ selectedStudent.name }}</h2>
               <div class="d-flex justify-center flex-wrap">
@@ -198,11 +192,10 @@
 
             <v-card-text class="text-center pa-6" v-if="selectedStudent">
               <div class="student-image-container mb-4">
-                <img
-                  :src="selectedStudent.image || 'https://cdn.vuetifyjs.com/images/john.jpg'"
-                  alt="Student"
-                  class="student-result-image"
-                >
+                <v-avatar size="150" class="student-avatar" :color="getAvatarColor(selectedStudent.name)">
+                  <v-img v-if="selectedStudent.image" :src="selectedStudent.image" :alt="selectedStudent.name" cover></v-img>
+                  <span v-else class="text-h3 text-white">{{ getInitials(selectedStudent.name) }}</span>
+                </v-avatar>
               </div>
               <h2 class="text-h3 font-weight-bold primary--text">{{ selectedStudent.name }}</h2>
               <p v-if="selectedStudent.class_name" class="text-subtitle-1 mt-2">
@@ -374,6 +367,7 @@
 import { ref, computed, onMounted } from 'vue'
 import axios from 'axios'
 import RandomWheel from '@/components/RandomWheel.vue'
+import { getInitials, getAvatarColor } from '@/utils/imageUtils'
 
 // Data
 const classes = ref([])

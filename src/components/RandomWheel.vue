@@ -15,7 +15,7 @@
         {{ spinButtonText }}
       </v-btn>
     </div>
-    <div class="wheel-reset" v-if="!isSpinning">
+    <div class="wheel-reset" v-if="!isSpinning && selectedItem">
       <v-btn
         color="secondary"
         size="small"
@@ -46,11 +46,10 @@
 
         <v-card-text class="text-center pa-6" v-if="selectedItem">
           <div class="student-image-container mb-4">
-            <img
-              :src="selectedItem.image || 'https://cdn.vuetifyjs.com/images/john.jpg'"
-              alt="Student"
-              class="student-result-image"
-            >
+            <v-avatar size="150" class="student-avatar" :color="getAvatarColor(selectedItem.name)">
+              <v-img v-if="selectedItem.image" :src="selectedItem.image" :alt="selectedItem.name" cover></v-img>
+              <span v-else class="text-h3 text-white">{{ getInitials(selectedItem.name) }}</span>
+            </v-avatar>
           </div>
           <h2 class="text-h3 font-weight-bold primary--text">{{ selectedItem.name }}</h2>
           <p v-if="selectedItem.class_name" class="text-subtitle-1 mt-2">
@@ -76,6 +75,7 @@
 <script setup>
 import { ref, onMounted, onUnmounted, computed, watch } from 'vue';
 import confetti from 'canvas-confetti';
+import { getInitials, getAvatarColor } from '@/utils/imageUtils';
 
 const props = defineProps({
   items: {
