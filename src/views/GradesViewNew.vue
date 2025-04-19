@@ -1656,31 +1656,85 @@ const saveStudentDetails = async () => {
     }
 
     try {
-      // تحضير بيانات الدرجات
+      // تحضير بيانات الدرجات للحفظ المجمع
       // ملاحظة: نستخدم فقط الأنواع المسموح بها في الباك اند
-      // الأنواع المسموح بها: theory, practical, participation, quran, final
-      const gradeTypes = [
-        { type: 'theory', score: parseInt(studentDetailsDialog.value.student.theory) || 0, max_score: 15 },
-        { type: 'practical', score: parseInt(studentDetailsDialog.value.student.practical) || 0, max_score: 5 },
-        // نضيف درجة الواجبات إلى درجة المشاركة لأن الباك اند لا يدعم نوع 'homework'
-        { type: 'participation', score: (parseInt(studentDetailsDialog.value.student.participation) || 0) + (parseInt(studentDetailsDialog.value.student.homework) || 0), max_score: 10 },
-        { type: 'quran', score: parseInt(studentDetailsDialog.value.student.quran) || 0, max_score: 20 },
-        { type: 'final', score: parseInt(studentDetailsDialog.value.student.final) || 0, max_score: 40 }
-      ]
+      const batchGradesData = [];
 
-      // حفظ كل نوع من الدرجات على حدة
-      for (const gradeType of gradeTypes) {
-        const gradeData = {
+      // إضافة درجة النظري
+      if (studentDetailsDialog.value.student.theory !== undefined && studentDetailsDialog.value.student.theory !== null) {
+        batchGradesData.push({
           student: studentDetailsDialog.value.student.id,
           subject: selectedSubject.value.id,
           date: selectedDate.value,
-          type: gradeType.type,
-          score: gradeType.score,
-          max_score: gradeType.max_score
-        }
-
-        await gradesStore.saveGrade(gradeData)
+          type: 'theory',
+          score: parseInt(studentDetailsDialog.value.student.theory) || 0,
+          max_score: 15
+        });
       }
+
+      // إضافة درجة العملي
+      if (studentDetailsDialog.value.student.practical !== undefined && studentDetailsDialog.value.student.practical !== null) {
+        batchGradesData.push({
+          student: studentDetailsDialog.value.student.id,
+          subject: selectedSubject.value.id,
+          date: selectedDate.value,
+          type: 'practical',
+          score: parseInt(studentDetailsDialog.value.student.practical) || 0,
+          max_score: 5
+        });
+      }
+
+      // إضافة درجة الواجبات
+      if (studentDetailsDialog.value.student.homework !== undefined && studentDetailsDialog.value.student.homework !== null) {
+        batchGradesData.push({
+          student: studentDetailsDialog.value.student.id,
+          subject: selectedSubject.value.id,
+          date: selectedDate.value,
+          type: 'homework',
+          score: parseInt(studentDetailsDialog.value.student.homework) || 0,
+          max_score: 10
+        });
+      }
+
+      // إضافة درجة المشاركة
+      if (studentDetailsDialog.value.student.participation !== undefined && studentDetailsDialog.value.student.participation !== null) {
+        batchGradesData.push({
+          student: studentDetailsDialog.value.student.id,
+          subject: selectedSubject.value.id,
+          date: selectedDate.value,
+          type: 'participation',
+          score: parseInt(studentDetailsDialog.value.student.participation) || 0,
+          max_score: 10
+        });
+      }
+
+      // إضافة درجة القرآن
+      if (studentDetailsDialog.value.student.quran !== undefined && studentDetailsDialog.value.student.quran !== null) {
+        batchGradesData.push({
+          student: studentDetailsDialog.value.student.id,
+          subject: selectedSubject.value.id,
+          date: selectedDate.value,
+          type: 'quran',
+          score: parseInt(studentDetailsDialog.value.student.quran) || 0,
+          max_score: 20
+        });
+      }
+
+      // إضافة درجة النهائي
+      if (studentDetailsDialog.value.student.final !== undefined && studentDetailsDialog.value.student.final !== null) {
+        batchGradesData.push({
+          student: studentDetailsDialog.value.student.id,
+          subject: selectedSubject.value.id,
+          date: selectedDate.value,
+          type: 'final',
+          score: parseInt(studentDetailsDialog.value.student.final) || 0,
+          max_score: 40
+        });
+      }
+
+      // حفظ الدرجات باستخدام متجر الدرجات
+      console.log('Batch grades data to save for student:', batchGradesData);
+      await gradesStore.saveBatchGrades(batchGradesData);
 
       // تحضير بيانات الحضور
       const attendanceData = {
@@ -1954,9 +2008,88 @@ const saveAllGrades = async () => {
     }))
 
     try {
+      // تحضير الدرجات للحفظ المجمع
+      // نقوم بتحويل البيانات إلى مجموعة من الدرجات لكل نوع
+      const batchGradesData = [];
+
+      // لكل طالب، نضيف درجة لكل نوع
+      students.value.forEach(student => {
+        // إضافة درجة النظري
+        if (student.theory !== undefined && student.theory !== null) {
+          batchGradesData.push({
+            student: student.id,
+            subject: selectedSubject.value.id,
+            date: selectedDate.value,
+            type: 'theory',
+            score: parseInt(student.theory) || 0,
+            max_score: 15
+          });
+        }
+
+        // إضافة درجة العملي
+        if (student.practical !== undefined && student.practical !== null) {
+          batchGradesData.push({
+            student: student.id,
+            subject: selectedSubject.value.id,
+            date: selectedDate.value,
+            type: 'practical',
+            score: parseInt(student.practical) || 0,
+            max_score: 5
+          });
+        }
+
+        // إضافة درجة الواجبات
+        if (student.homework !== undefined && student.homework !== null) {
+          batchGradesData.push({
+            student: student.id,
+            subject: selectedSubject.value.id,
+            date: selectedDate.value,
+            type: 'homework',
+            score: parseInt(student.homework) || 0,
+            max_score: 10
+          });
+        }
+
+        // إضافة درجة المشاركة
+        if (student.participation !== undefined && student.participation !== null) {
+          batchGradesData.push({
+            student: student.id,
+            subject: selectedSubject.value.id,
+            date: selectedDate.value,
+            type: 'participation',
+            score: parseInt(student.participation) || 0,
+            max_score: 10
+          });
+        }
+
+        // إضافة درجة القرآن
+        if (student.quran !== undefined && student.quran !== null) {
+          batchGradesData.push({
+            student: student.id,
+            subject: selectedSubject.value.id,
+            date: selectedDate.value,
+            type: 'quran',
+            score: parseInt(student.quran) || 0,
+            max_score: 20
+          });
+        }
+
+        // إضافة درجة النهائي
+        if (student.final !== undefined && student.final !== null) {
+          batchGradesData.push({
+            student: student.id,
+            subject: selectedSubject.value.id,
+            date: selectedDate.value,
+            type: 'final',
+            score: parseInt(student.final) || 0,
+            max_score: 40
+          });
+        }
+      });
+
       // حفظ الدرجات باستخدام متجر الدرجات
-      console.log('Grades data to save:', gradesData)
-      await gradesStore.saveBatchGrades(gradesData)
+      console.log('Batch grades data to save:', batchGradesData)
+      await gradesStore.saveBatchGrades(batchGradesData)
 
       // حفظ بيانات الحضور
       const attendanceData = students.value.map(student => ({
