@@ -114,32 +114,32 @@
                 <th class="text-center table-header period-header">
                   <div class="d-flex justify-center align-center">
                     <v-icon icon="mdi-timetable" class="me-2" color="primary"></v-icon>
-                    <span>الحصة / اليوم</span>
+                    <span>اليوم / الحصة</span>
                   </div>
                 </th>
                 <th
-                  v-for="day in days"
-                  :key="day.value"
-                  class="text-center table-header day-header"
+                  v-for="period in periods"
+                  :key="period.value"
+                  class="text-center table-header period-header"
                 >
-                  <v-chip variant="flat" color="primary" class="font-weight-bold px-3 py-2 day-chip">
-                    <v-icon start icon="mdi-calendar-week" size="small"></v-icon>
-                    {{ day.title }}
+                  <v-chip variant="flat" color="secondary" class="font-weight-bold px-3 py-2 period-chip">
+                    <v-icon start icon="mdi-clock-outline" size="small"></v-icon>
+                    {{ period.title }}
                   </v-chip>
                 </th>
               </tr>
             </thead>
             <tbody>
-              <tr v-for="period in periods" :key="period.value">
-                <td class="text-center font-weight-bold period-cell">
-                  <v-chip variant="flat" color="secondary" class="font-weight-bold period-chip">
-                    <v-icon start icon="mdi-clock-outline" size="small"></v-icon>
-                    {{ period.title }}
+              <tr v-for="day in days" :key="day.value">
+                <td class="text-center font-weight-bold day-cell">
+                  <v-chip variant="flat" color="primary" class="font-weight-bold px-3 py-2 day-chip">
+                    <v-icon start icon="mdi-calendar-week" size="small"></v-icon>
+                    {{ day.title }}
                   </v-chip>
                 </td>
                 <td
-                  v-for="day in days"
-                  :key="`${period.value}-${day.value}`"
+                  v-for="period in periods"
+                  :key="`${day.value}-${period.value}`"
                   class="text-center schedule-cell"
                   @click="openScheduleDialog(day.value, period.value)"
                 >
@@ -768,6 +768,7 @@ const addDummyData = () => {
   min-width: 800px;
   margin: 0 auto;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  table-layout: fixed;
 }
 
 .table-header {
@@ -778,14 +779,15 @@ const addDummyData = () => {
 }
 
 .period-header {
-  width: 180px;
+  width: 120px;
   background-color: rgba(var(--v-theme-secondary), 0.05);
-  border-radius: 8px 0 0 8px;
-  border-bottom: 2px solid rgba(var(--v-theme-primary), 0.2);
+  border-bottom: 2px solid rgba(var(--v-theme-secondary), 0.2);
 }
 
 .day-header {
+  width: 180px;
   background-color: rgba(var(--v-theme-primary), 0.05);
+  border-radius: 8px 0 0 8px;
   border-bottom: 2px solid rgba(var(--v-theme-primary), 0.2);
 }
 
@@ -797,6 +799,13 @@ const addDummyData = () => {
 .period-cell {
   background-color: rgba(var(--v-theme-secondary), 0.05);
   border-right: 2px solid rgba(var(--v-theme-secondary), 0.2);
+  padding: 8px;
+  width: 180px;
+}
+
+.day-cell {
+  background-color: rgba(var(--v-theme-primary), 0.05);
+  border-right: 2px solid rgba(var(--v-theme-primary), 0.2);
   padding: 8px;
   width: 180px;
 }
