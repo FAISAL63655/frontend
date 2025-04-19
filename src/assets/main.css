@@ -1,0 +1,171 @@
+/* Import Tajawal font from Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800&display=swap');
+
+/* CSS variables */
+:root {
+  --primary-color: 25, 118, 210;
+  --primary-light: 66, 165, 245;
+  --primary-dark: 21, 101, 192;
+  --surface-light: 255, 255, 255;
+  --surface-dark: 30, 30, 30;
+  --background-light: 245, 247, 250;
+  --background-dark: 18, 18, 18;
+  --text-light: 33, 33, 33;
+  --text-dark: 255, 255, 255;
+  
+  --card-radius: 12px;
+  --btn-radius: 8px;
+  --transition-speed: 0.3s;
+}
+
+/* Base styles */
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  font-family: 'Tajawal', 'Roboto', sans-serif;
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 1.5;
+  direction: rtl;
+  scroll-behavior: smooth;
+}
+
+#app {
+  width: 100%;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Light/Dark mode transitions */
+.v-application, .v-card, .v-btn, .v-sheet, .v-navigation-drawer, .v-app-bar {
+  transition: background-color var(--transition-speed) ease, 
+              color var(--transition-speed) ease,
+              border-color var(--transition-speed) ease,
+              box-shadow var(--transition-speed) ease !important;
+}
+
+/* Typography */
+h1, h2, h3, h4, h5, h6 {
+  margin-top: 0;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+/* RTL specific fixes */
+.v-application {
+  direction: rtl;
+}
+
+/* Fix for Vuetify components in RTL */
+.v-btn__prepend {
+  margin-right: 0;
+  margin-left: 8px;
+}
+
+.v-list-item__prepend {
+  margin-left: 16px;
+  margin-right: 0;
+}
+
+/* Custom scrollbar - Light Theme */
+html[dir="rtl"] .v-theme--light ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+html[dir="rtl"] .v-theme--light ::-webkit-scrollbar-track {
+  background: rgba(var(--background-light), 0.8);
+}
+
+html[dir="rtl"] .v-theme--light ::-webkit-scrollbar-thumb {
+  background: rgba(var(--primary-color), 0.3);
+  border-radius: 4px;
+}
+
+html[dir="rtl"] .v-theme--light ::-webkit-scrollbar-thumb:hover {
+  background: rgba(var(--primary-color), 0.5);
+}
+
+/* Custom scrollbar - Dark Theme */
+html[dir="rtl"] .v-theme--dark ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+html[dir="rtl"] .v-theme--dark ::-webkit-scrollbar-track {
+  background: rgba(var(--background-dark), 0.8);
+}
+
+html[dir="rtl"] .v-theme--dark ::-webkit-scrollbar-thumb {
+  background: rgba(var(--primary-light), 0.3);
+  border-radius: 4px;
+}
+
+html[dir="rtl"] .v-theme--dark ::-webkit-scrollbar-thumb:hover {
+  background: rgba(var(--primary-light), 0.5);
+}
+
+/* Common card styles */
+.v-card {
+  border-radius: var(--card-radius) !important;
+  overflow: hidden;
+}
+
+/* Elevation and transitions */
+.smooth-elevation {
+  transition: transform var(--transition-speed) ease, box-shadow var(--transition-speed) ease;
+}
+
+.smooth-elevation:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Animation utilities */
+.fade-enter-active, .fade-leave-active {
+  transition: opacity 0.3s;
+}
+
+.fade-enter-from, .fade-leave-to {
+  opacity: 0;
+}
+
+/* Page transitions */
+.page-enter-active,
+.page-leave-active {
+  transition: all 0.3s;
+}
+
+.page-enter-from,
+.page-leave-to {
+  opacity: 0;
+  transform: translateY(10px);
+}
+
+/* Utility classes */
+.font-tajawal {
+  font-family: 'Tajawal', sans-serif !important;
+}
+
+.text-truncate {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rounded-card {
+  border-radius: var(--card-radius) !important;
+}
+
+.rounded-btn {
+  border-radius: var(--btn-radius) !important;
+}
+
+/* Focus styles */
+.v-btn:focus,
+.v-field:focus-within {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(var(--primary-color), 0.4) !important;
+}

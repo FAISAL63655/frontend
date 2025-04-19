@@ -25,11 +25,19 @@ services:
   - type: web
     name: teachease-frontend
     env: node
+    runtime: node
+    nodeVersion: 18.19.0
     buildCommand: cd frontend/edu-system && npm install && npm run build
     startCommand: cd frontend/edu-system && npm run preview -- --host 0.0.0.0 --port $PORT
     envVars:
       - key: VITE_API_BASE_URL
         value: https://teachease-backend.onrender.com/api
+      - key: VITE_USE_MOCK_DATA
+        value: false
+    headers:
+      - path: /*
+        name: Cache-Control
+        value: public, max-age=31536000, immutable
 
 # Database
 databases:
