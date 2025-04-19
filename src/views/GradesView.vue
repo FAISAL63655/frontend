@@ -70,18 +70,45 @@
               ></v-select>
             </v-col>
             <v-col cols="12" sm="6" md="3">
-              <v-text-field
-                v-model="selectedDate"
-                label="التاريخ"
-                type="date"
-                variant="outlined"
-                density="comfortable"
-                prepend-inner-icon="mdi-calendar"
-                hide-details
-                bg-color="white"
-                class="rounded-lg"
-                @update:model-value="dateChanged"
-              ></v-text-field>
+              <v-menu
+                v-model="dateMenu"
+                :close-on-content-click="false"
+                transition="scale-transition"
+                offset-y
+                min-width="auto"
+              >
+                <template v-slot:activator="{ props }">
+                  <v-text-field
+                    v-model="selectedDate"
+                    label="التاريخ"
+                    prepend-inner-icon="mdi-calendar"
+                    readonly
+                    v-bind="props"
+                    variant="outlined"
+                    density="comfortable"
+                    hide-details
+                    bg-color="white"
+                    class="rounded-lg"
+                  ></v-text-field>
+                </template>
+                <v-date-picker
+                  v-model="selectedDate"
+                  @update:model-value="dateChanged"
+                  no-title
+                  scrollable
+                  locale="ar-SA"
+                  :first-day-of-week="6"
+                >
+                  <v-spacer></v-spacer>
+                  <v-btn
+                    text
+                    color="primary"
+                    @click="dateMenu = false"
+                  >
+                    إغلاق
+                  </v-btn>
+                </v-date-picker>
+              </v-menu>
             </v-col>
           </v-row>
         </div>
@@ -502,18 +529,18 @@
           <span class="primary--text">الواجب الحالي:</span> {{ currentAssignment.title }}
         </div>
         <div>
-          <v-btn 
-            color="primary" 
-            text 
+          <v-btn
+            color="primary"
+            text
             @click="showCreateAssignmentDialog = true"
             :disabled="loadingAssignment"
           >
             <v-icon left>mdi-plus</v-icon>
             واجب جديد
           </v-btn>
-          <v-btn 
-            color="secondary" 
-            text 
+          <v-btn
+            color="secondary"
+            text
             @click="showAssignmentList = true"
             :disabled="loadingAssignment"
           >
@@ -944,9 +971,9 @@
       </v-card-title>
       <v-card-text class="text-center">
         <p>لا توجد واجبات للمادة المختارة حاليًا</p>
-        <v-btn 
-          color="primary" 
-          class="mt-3" 
+        <v-btn
+          color="primary"
+          class="mt-3"
           @click="showCreateAssignmentDialog = true"
           :loading="loadingAssignment"
         >
@@ -1116,6 +1143,7 @@ const handleStudentDetailsImageError = () => {
 // متغيرات جديدة للتصميم
 const showFilters = ref(true)
 const search = ref('')
+const dateMenu = ref(false)
 
 // متغيرات تصفح الصفحات
 const currentPage = ref(1)
@@ -1193,6 +1221,7 @@ const showAssignmentsSelector = ref(false) // عرض قائمة اختيار ا�
 
 // Dialogs
 const showAddAssignmentDialog = ref(false)
+const showCreateAssignmentDialog = ref(false)
 const showStudentDetailsDialog = ref(false)
 const selectedStudent = ref(null)
 const activeTab = ref('grades')
@@ -1434,7 +1463,7 @@ const fetchStudents = async () => {
 
     // Procesar las calificaciones para cada estudiante
     const processedStudents = studentsWithGrades.map(student => {
-      const studentGrades = gradesStore.getGradesByStudent.value(student.id)
+      const studentGrades = gradesStore.getGradesByStudent(student.id) || []
 
       // Encontrar calificaciones para el sujeto actual
       const subjectGrades = studentGrades.filter(grade => {
@@ -1478,7 +1507,7 @@ const fetchStudents = async () => {
       // Calcular puntuación total si hay calificaciones
       if (theory !== null || practical !== null || homework !== null || participation !== null || quran !== null || final !== null) {
         total = 0
-        
+
         // Sólo sumar los valores que no son null
         if (theory !== null) total += theory
         if (practical !== null) total += practical
