@@ -28,6 +28,12 @@ const routes = [
       meta: { title: 'الدرجات' }
     },
     {
+      path: '/grades-new',
+      name: 'grades-new',
+      component: () => import('../views/GradesViewNew.vue'),
+      meta: { title: 'الدرجات المحدثة' }
+    },
+    {
       path: '/reports',
       name: 'reports',
       component: () => import('../views/ReportsView.vue'),

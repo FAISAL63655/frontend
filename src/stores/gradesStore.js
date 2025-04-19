@@ -365,6 +365,252 @@ export const useGradesStore = defineStore('grades', () => {
     lastFetch.value = {}
   }
 
+  // دوال حفظ البيانات على الخادم
+  const saveGrade = async (gradeData) => {
+    try {
+      console.log('Saving grade:', gradeData)
+
+      // التحقق من وجود معرف للدرجة
+      if (gradeData.id) {
+        // تحديث درجة موجودة
+        const response = await api.put(`grades/${gradeData.id}/`, gradeData)
+
+        // تحديث الكاش
+        if (response.data && grades.value[gradeData.student]) {
+          const index = grades.value[gradeData.student].findIndex(g => g.id === gradeData.id)
+          if (index !== -1) {
+            grades.value[gradeData.student][index] = response.data
+          }
+        }
+
+        return response.data
+      } else {
+        // إنشاء درجة جديدة
+        const response = await api.post('grades/', gradeData)
+
+        // تحديث الكاش
+        if (response.data) {
+          if (!grades.value[gradeData.student]) {
+            grades.value[gradeData.student] = []
+          }
+          grades.value[gradeData.student].push(response.data)
+        }
+
+        return response.data
+      }
+    } catch (error) {
+      console.error('Error saving grade:', error)
+      throw error
+    }
+  }
+
+  const saveAttendance = async (attendanceData) => {
+    try {
+      console.log('Saving attendance:', attendanceData)
+
+      // التحقق من وجود معرف للحضور
+      if (attendanceData.id) {
+        // تحديث سجل حضور موجود
+        const response = await api.put(`attendances/${attendanceData.id}/`, attendanceData)
+
+        // تحديث الكاش
+        if (response.data) {
+          const key = `${response.data.student}-${response.data.date}`
+          attendance.value[key] = response.data
+        }
+
+        return response.data
+      } else {
+        // إنشاء سجل حضور جديد
+        const response = await api.post('attendances/', attendanceData)
+
+        // تحديث الكاش
+        if (response.data) {
+          const key = `${response.data.student}-${response.data.date}`
+          attendance.value[key] = response.data
+        }
+
+        return response.data
+      }
+    } catch (error) {
+      console.error('Error saving attendance:', error)
+      throw error
+    }
+  }
+
+  const saveAssignment = async (assignmentData) => {
+    try {
+      console.log('Saving assignment:', assignmentData)
+
+      // التحقق من وجود معرف للواجب
+      if (assignmentData.id) {
+        // تحديث واجب موجود
+        const response = await api.put(`assignments/${assignmentData.id}/`, assignmentData)
+
+        // تحديث الكاش
+        if (response.data && assignments.value[assignmentData.subject]) {
+          const index = assignments.value[assignmentData.subject].findIndex(a => a.id === assignmentData.id)
+          if (index !== -1) {
+            assignments.value[assignmentData.subject][index] = response.data
+          }
+        }
+
+        return response.data
+      } else {
+        // إنشاء واجب جديد
+        const response = await api.post('assignments/', assignmentData)
+
+        // تحديث الكاش
+        if (response.data) {
+          if (!assignments.value[assignmentData.subject]) {
+            assignments.value[assignmentData.subject] = []
+          }
+          assignments.value[assignmentData.subject].push(response.data)
+        }
+
+        return response.data
+      }
+    } catch (error) {
+      console.error('Error saving assignment:', error)
+      throw error
+    }
+  }
+
+  const deleteAssignment = async (assignmentId, subjectId) => {
+    try {
+      console.log('Deleting assignment:', assignmentId)
+
+      // حذف الواجب من الخادم
+      await api.delete(`assignments/${assignmentId}/`)
+
+      // تحديث الكاش
+      if (assignments.value[subjectId]) {
+        assignments.value[subjectId] = assignments.value[subjectId].filter(a => a.id !== assignmentId)
+      }
+
+      return true
+    } catch (error) {
+      console.error('Error deleting assignment:', error)
+      throw error
+    }
+  }
+
+  const saveSubmission = async (submissionData) => {
+    try {
+      console.log('Saving submission:', submissionData)
+
+      // التحقق من وجود معرف للتسليم
+      if (submissionData.id) {
+        // تحديث تسليم موجود
+        const response = await api.put(`assignment-submissions/${submissionData.id}/`, submissionData)
+
+        // تحديث الكاش
+        if (response.data) {
+          const key = `${response.data.student}-${response.data.assignment}`
+          submissions.value[key] = response.data
+        }
+
+        return response.data
+      } else {
+        // إنشاء تسليم جديد
+        const response = await api.post('assignment-submissions/', submissionData)
+
+        // تحديث الكاش
+        if (response.data) {
+          const key = `${response.data.student}-${response.data.assignment}`
+          submissions.value[key] = response.data
+        }
+
+        return response.data
+      }
+    } catch (error) {
+      console.error('Error saving submission:', error)
+      throw error
+    }
+  }
+
+  // دالة حفظ مجموعة من الدرجات دفعة واحدة
+  const saveBatchGrades = async (gradesDataArray) => {
+    try {
+      console.log('Saving batch grades:', gradesDataArray)
+
+      // محاولة استخدام واجهة الدفعة الواحدة
+      const response = await api.post('grades/batch/', { grades: gradesDataArray })
+
+      // تحديث الكاش
+      if (response.data && Array.isArray(response.data)) {
+        response.data.forEach(grade => {
+          if (!grades.value[grade.student]) {
+            grades.value[grade.student] = []
+          }
+
+          const index = grades.value[grade.student].findIndex(g => g.id === grade.id)
+          if (index !== -1) {
+            grades.value[grade.student][index] = grade
+          } else {
+            grades.value[grade.student].push(grade)
+          }
+        })
+      }
+
+      return response.data
+    } catch (error) {
+      console.error('Error saving batch grades:', error)
+
+      // في حالة فشل الدفعة الواحدة، نحاول حفظ كل درجة على حدة
+      console.log('Falling back to individual grade saves')
+
+      const results = []
+      for (const gradeData of gradesDataArray) {
+        try {
+          const result = await saveGrade(gradeData)
+          results.push(result)
+        } catch (err) {
+          console.error('Error saving individual grade:', err)
+        }
+      }
+
+      return results
+    }
+  }
+
+  // دالة حفظ مجموعة من سجلات الحضور دفعة واحدة
+  const saveBatchAttendance = async (attendanceDataArray) => {
+    try {
+      console.log('Saving batch attendance:', attendanceDataArray)
+
+      // محاولة استخدام واجهة الدفعة الواحدة
+      const response = await api.post('attendances/batch/', { attendances: attendanceDataArray })
+
+      // تحديث الكاش
+      if (response.data && Array.isArray(response.data)) {
+        response.data.forEach(record => {
+          const key = `${record.student}-${record.date}`
+          attendance.value[key] = record
+        })
+      }
+
+      return response.data
+    } catch (error) {
+      console.error('Error saving batch attendance:', error)
+
+      // في حالة فشل الدفعة الواحدة، نحاول حفظ كل سجل على حدة
+      console.log('Falling back to individual attendance saves')
+
+      const results = []
+      for (const attendanceData of attendanceDataArray) {
+        try {
+          const result = await saveAttendance(attendanceData)
+          results.push(result)
+        } catch (err) {
+          console.error('Error saving individual attendance:', err)
+        }
+      }
+
+      return results
+    }
+  }
+
   return {
     // Estado
     students,
@@ -380,12 +626,21 @@ export const useGradesStore = defineStore('grades', () => {
     getAssignmentsBySubject,
     getSubmissionsByStudentAndAssignment,
 
-    // Acciones
+    // Acciones de lectura
     fetchStudentsByClassAndSection,
     fetchGradesForStudents,
     fetchAttendanceForDate,
     fetchAssignmentsBySubject,
     fetchSubmissionsForAssignment,
-    clearCache
+    clearCache,
+
+    // Acciones de escritura
+    saveGrade,
+    saveAttendance,
+    saveAssignment,
+    deleteAssignment,
+    saveSubmission,
+    saveBatchGrades,
+    saveBatchAttendance
   }
 })
