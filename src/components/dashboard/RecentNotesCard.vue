@@ -72,7 +72,7 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import api from '../../services/api'
+import DashboardService from '../../services/DashboardService'
 
 const recentNotes = ref([])
 const isLoading = ref(false)
@@ -86,65 +86,65 @@ onMounted(() => {
 const fetchRecentNotes = async () => {
   isLoading.value = true
   hasError.value = false
-  
+
   try {
-    const response = await api.get('/dashboard/recent-notes/')
-    if (response.data && response.data.length > 0) {
-      recentNotes.value = response.data
+    const data = await DashboardService.getRecentNotes()
+    if (data && data.length > 0) {
+      recentNotes.value = data
       console.log('Recent notes loaded successfully:', recentNotes.value)
     } else {
       console.log('No recent notes data returned, using fallback data')
       // Fallback data
       recentNotes.value = [
-        { 
-          id: 1, 
-          student_name: 'أحمد محمد', 
-          student_id: 1, 
-          content: 'متفوق في حفظ القرآن الكريم', 
-          type: 'positive', 
-          type_display: 'إيجابية', 
-          date: '2023-08-10', 
-          subject: 'القرآن الكريم' 
+        {
+          id: 1,
+          student_name: 'أحمد محمد',
+          student_id: 1,
+          content: 'متفوق في حفظ القرآن الكريم',
+          type: 'positive',
+          type_display: 'إيجابية',
+          date: '2023-08-10',
+          subject: 'القرآن الكريم'
         },
-        { 
-          id: 2, 
-          student_name: 'عبدالله خالد', 
-          student_id: 2, 
-          content: 'لم يقم بحل الواجب المنزلي', 
-          type: 'negative', 
-          type_display: 'سلبية', 
-          date: '2023-08-09', 
-          subject: 'التوحيد' 
+        {
+          id: 2,
+          student_name: 'عبدالله خالد',
+          student_id: 2,
+          content: 'لم يقم بحل الواجب المنزلي',
+          type: 'negative',
+          type_display: 'سلبية',
+          date: '2023-08-09',
+          subject: 'التوحيد'
         },
-        { 
-          id: 3, 
-          student_name: 'محمد علي', 
-          student_id: 3, 
-          content: 'مشارك بشكل فعال في الفصل', 
-          type: 'positive', 
-          type_display: 'إيجابية', 
-          date: '2023-08-08', 
-          subject: 'الفقه' 
+        {
+          id: 3,
+          student_name: 'محمد علي',
+          student_id: 3,
+          content: 'مشارك بشكل فعال في الفصل',
+          type: 'positive',
+          type_display: 'إيجابية',
+          date: '2023-08-08',
+          subject: 'الفقه'
         },
-        { 
-          id: 4, 
-          student_name: 'سعد عبدالرحمن', 
-          student_id: 4, 
-          content: 'متأخر عن الحصة الدراسية', 
-          type: 'negative', 
-          type_display: 'سلبية', 
-          date: '2023-08-07', 
-          subject: 'الحديث' 
+        {
+          id: 4,
+          student_name: 'سعد عبدالرحمن',
+          student_id: 4,
+          content: 'متأخر عن الحصة الدراسية',
+          type: 'negative',
+          type_display: 'سلبية',
+          date: '2023-08-07',
+          subject: 'الحديث'
         },
-        { 
-          id: 5, 
-          student_name: 'فهد سلطان', 
-          student_id: 5, 
-          content: 'متعاون مع زملائه في الأنشطة الجماعية', 
-          type: 'positive', 
-          type_display: 'إيجابية', 
-          date: '2023-08-06', 
-          subject: 'اللغة العربية' 
+        {
+          id: 5,
+          student_name: 'فهد سلطان',
+          student_id: 5,
+          content: 'متعاون مع زملائه في الأنشطة الجماعية',
+          type: 'positive',
+          type_display: 'إيجابية',
+          date: '2023-08-06',
+          subject: 'اللغة العربية'
         }
       ]
     }
@@ -152,38 +152,38 @@ const fetchRecentNotes = async () => {
     console.error('Error fetching recent notes:', error)
     hasError.value = true
     errorMessage.value = 'حدث خطأ أثناء تحميل الملاحظات. يرجى المحاولة مرة أخرى.'
-    
+
     // Fallback data
     recentNotes.value = [
-      { 
-        id: 1, 
-        student_name: 'أحمد محمد', 
-        student_id: 1, 
-        content: 'متفوق في حفظ القرآن الكريم', 
-        type: 'positive', 
-        type_display: 'إيجابية', 
-        date: '2023-08-10', 
-        subject: 'القرآن الكريم' 
+      {
+        id: 1,
+        student_name: 'أحمد محمد',
+        student_id: 1,
+        content: 'متفوق في حفظ القرآن الكريم',
+        type: 'positive',
+        type_display: 'إيجابية',
+        date: '2023-08-10',
+        subject: 'القرآن الكريم'
       },
-      { 
-        id: 2, 
-        student_name: 'عبدالله خالد', 
-        student_id: 2, 
-        content: 'لم يقم بحل الواجب المنزلي', 
-        type: 'negative', 
-        type_display: 'سلبية', 
-        date: '2023-08-09', 
-        subject: 'التوحيد' 
+      {
+        id: 2,
+        student_name: 'عبدالله خالد',
+        student_id: 2,
+        content: 'لم يقم بحل الواجب المنزلي',
+        type: 'negative',
+        type_display: 'سلبية',
+        date: '2023-08-09',
+        subject: 'التوحيد'
       },
-      { 
-        id: 3, 
-        student_name: 'محمد علي', 
-        student_id: 3, 
-        content: 'مشارك بشكل فعال في الفصل', 
-        type: 'positive', 
-        type_display: 'إيجابية', 
-        date: '2023-08-08', 
-        subject: 'الفقه' 
+      {
+        id: 3,
+        student_name: 'محمد علي',
+        student_id: 3,
+        content: 'مشارك بشكل فعال في الفصل',
+        type: 'positive',
+        type_display: 'إيجابية',
+        date: '2023-08-08',
+        subject: 'الفقه'
       }
     ]
   } finally {
@@ -193,22 +193,22 @@ const fetchRecentNotes = async () => {
 
 const formatDate = (dateString) => {
   if (!dateString) return ''
-  
+
   const date = new Date(dateString)
   const now = new Date()
   const yesterday = new Date(now)
   yesterday.setDate(yesterday.getDate() - 1)
-  
+
   // If date is today
   if (date.toDateString() === now.toDateString()) {
     return 'اليوم'
   }
-  
+
   // If date is yesterday
   if (date.toDateString() === yesterday.toDateString()) {
     return 'أمس'
   }
-  
+
   // Otherwise, format the date
   return date.toLocaleDateString('ar-SA')
 }

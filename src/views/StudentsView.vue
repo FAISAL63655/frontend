@@ -496,7 +496,7 @@
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
-import api, { getFullImageUrl, batchRequests } from '@/services/apiConfig'
+import { StudentService, ClassService, SectionService } from '@/services'
 import { useSimpleCacheStore } from '@/stores/simpleCache'
 import { getInitials, getAvatarColor } from '@/utils/imageUtils'
 
@@ -545,8 +545,7 @@ const filteredStudents = computed(() => {
   return students.value.filter(student => student.status === selectedStatus.value)
 })
 
-// استخدام دالة getFullImageUrl من apiConfig.js
-// تم تعريفها بالفعل في الأعلى
+// دوال مساعدة للتعامل مع صور الطلاب
 
 // دالة مساعدة للتأكد من وجود صورة أو استخدام الحرف الأول من الاسم
 const getStudentImage = (imagePath, studentName = '') => {
@@ -558,40 +557,14 @@ const getStudentImage = (imagePath, studentName = '') => {
 
   // إذا كان المسار يبدأ بـ http أو https
   if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
-    // التحقق من أن المسار يشير إلى صورة موجودة
-    if (imagePath.includes('teachease-backend.onrender.com/media/')) {
-      // استخراج اسم الملف من المسار
-      const parts = imagePath.split('/')
-      const filename = parts[parts.length - 1]
-
-      // استخراج الجزء الأساسي من عنوان API
-      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || '/api/'
-      const baseUrl = apiBaseUrl.endsWith('/api/')
-        ? apiBaseUrl.slice(0, -4) // إزالة '/api'
-        : apiBaseUrl.endsWith('/api')
-          ? apiBaseUrl.slice(0, -3) // إزالة 'api'
-          : apiBaseUrl
-
-      // إنشاء مسار جديد باستخدام المجلد الصحيح
-      const newUrl = `${baseUrl}/media/students/${filename}`
-      console.log(`تم تحويل مسار الصورة من ${imagePath} إلى ${newUrl}`)
-      return newUrl
+    // إذا كان المسار من Supabase Storage
+    if (imagePath.includes('supabase.co') && imagePath.includes('/storage/v1/object/public/')) {
+      // المسار صحيح من Supabase
+      return imagePath
     }
 
-    // إذا كان المسار كاملاً ولكن ليس من الخادم الخاص بنا
+    // إذا كان المسار من مصدر خارجي آخر (مثل randomuser.me للبيانات الوهمية)
     return imagePath
-  }
-
-  // إذا كان المسار يبدأ بـ /media
-  if (imagePath.startsWith('/media/')) {
-    // استخدام دالة getFullImageUrl للحصول على المسار الكامل
-    return getFullImageUrl(imagePath)
-  }
-
-  // إذا كان المسار يبدأ بـ students/
-  if (imagePath.startsWith('students/')) {
-    // استخدام دالة getFullImageUrl للحصول على المسار الكامل
-    return getFullImageUrl(imagePath)
   }
 
   // إذا لم يتطابق المسار مع أي من الحالات السابقة، استخدم null لعرض الحرف الأول من الاسم
@@ -699,45 +672,48 @@ onMounted(async () => {
         selectedSection.value = sections.value[0].id
       }
     } else {
-      // جلب البيانات من API باستخدام طلبات متعددة متوازية
-      console.log('Fetching classes and sections from API')
-      const [classesResponse, sectionsResponse] = await batchRequests([
-        'classes/',
-        'sections/'
-      ])
+      // جلب البيانات من Supabase
+      console.log('Fetching classes and sections from Supabase')
 
-      classes.value = classesResponse.data || []
-      sections.value = sectionsResponse.data || []
+      try {
+        // جلب الصفوف
+        const classesData = await ClassService.getClasses()
+        classes.value = classesData || []
+        console.log('Fetched classes:', classes.value)
 
-      // تخزين البيانات في التخزين المؤقت
-      cacheStore.set('classes', classes.value, 30 * 60 * 1000) // 30 دقيقة
-      cacheStore.set('sections', sections.value, 30 * 60 * 1000) // 30 دقيقة
+        // جلب الفصول
+        const sectionsData = await SectionService.getSections()
+        sections.value = sectionsData || []
+        console.log('Fetched sections:', sections.value)
 
-      console.log('Fetched and cached classes:', classes.value)
-      console.log('Fetched and cached sections:', sections.value)
+        // تخزين البيانات في التخزين المؤقت
+        cacheStore.set('classes', classes.value, 30 * 60 * 1000) // 30 دقيقة
+        cacheStore.set('sections', sections.value, 30 * 60 * 1000) // 30 دقيقة
 
-      if (classes.value.length > 0) {
-        selectedClass.value = classes.value[0].id
-      }
+        if (classes.value.length > 0) {
+          selectedClass.value = classes.value[0].id
+        }
 
-      if (sections.value.length > 0) {
-        selectedSection.value = sections.value[0].id
+        if (sections.value.length > 0) {
+          selectedSection.value = sections.value[0].id
+        }
+      } catch (fetchError) {
+        console.error('Error fetching classes or sections:', fetchError)
+        // إضافة بيانات وهمية في حالة فشل الجلب
+        addDummyData()
       }
     }
 
     // Fetch students
     await fetchStudents()
   } catch (error) {
-    console.error('Error fetching initial data:', error)
-    if (error.response) {
-      console.error('Error response data:', error.response.data)
-    }
+    console.error('Error in onMounted:', error)
     // For demo purposes, add some dummy data if API fails
     addDummyData()
   }
 })
 
-// تعديل fetchStudents لاستخدام التخزين المؤقت
+// تعديل fetchStudents لاستخدام التخزين المؤقت و Supabase
 const fetchStudents = async () => {
   if (!selectedClass.value || !selectedSection.value) return
 
@@ -755,44 +731,32 @@ const fetchStudents = async () => {
   }
 
   try {
-    // جلب البيانات من API
-    console.log(`Fetching students from API (class: ${selectedClass.value}, section: ${selectedSection.value})`)
-    const response = await api.get('students/by_class_section/', {
-      params: {
-        class_id: selectedClass.value,
-        section_id: selectedSection.value
-      }
-    })
+    // جلب البيانات من Supabase
+    console.log(`Fetching students from Supabase (class: ${selectedClass.value}, section: ${selectedSection.value})`)
 
-    // معالجة دقيقة للبيانات والتأكد من تحويل الأنواع
-    students.value = response.data.map(student => {
-      // طباعة البيانات الواردة من الخادم للتأكد من صحتها
-      console.log('Raw student data from server:', student)
+    const data = await StudentService.getStudentsByClassAndSection(
+      selectedClass.value,
+      selectedSection.value
+    )
 
-      // التعامل مع الصورة بشكل صحيح
-      let imageUrl = null; // استخدام null لعرض الحرف الأول من الاسم
-      if (student.image) {
-        // استخدام image_url إذا كانت موجودة (من الخادم)
-        if (student.image_url) {
-          imageUrl = student.image_url;
-        } else {
-          // استخدام دالة getStudentImage للحصول على المسار الكامل
-          imageUrl = getStudentImage(student.image, student.name);
-        }
-      }
-      console.log(`صورة الطالب ${student.name}:`, student.image, ' -> ', imageUrl);
+    console.log('Raw students data from Supabase:', data)
 
-      return {
+    // تعيين البيانات مباشرة لأنها تأتي بالشكل المطلوب من StudentService
+    if (Array.isArray(data)) {
+      students.value = data.map(student => ({
         id: student.id,
         name: student.name,
-        class_id: typeof student.class_name === 'string' ? parseInt(student.class_name) : student.class_name,
-        section_id: typeof student.section === 'string' ? parseInt(student.section) : student.section,
-        class_name: student.class_name_display || '',
-        section: student.section_display || '',
+        class_id: student.class_id,
+        section_id: student.section_id,
+        class_name: student.class_name,
+        section: student.section,
         status: student.status || 'active',
-        image: imageUrl
-      }
-    })
+        image: student.photo_url // استخدام photo_url من Supabase
+      }))
+    } else {
+      console.warn('Data returned from Supabase is not an array:', data)
+      students.value = []
+    }
 
     console.log('Processed students after mapping:', students.value)
 
@@ -919,8 +883,8 @@ const deleteStudent = async () => {
   try {
     console.log('Deleting student with ID:', studentToDelete.value.id)
 
-    // إرسال طلب حذف الطالب إلى الخادم الخلفي
-    await api.delete(`students/${studentToDelete.value.id}/`)
+    // إرسال طلب حذف الطالب إلى Supabase
+    await StudentService.deleteStudent(studentToDelete.value.id)
 
     // إبطال التخزين المؤقت للطلاب لأن البيانات تغيرت
     const cacheKeyPattern = 'students:class:'
@@ -940,9 +904,6 @@ const deleteStudent = async () => {
     studentToDelete.value = null
   } catch (error) {
     console.error('Error deleting student:', error)
-    if (error.response) {
-      console.error('Error response data:', error.response.data)
-    }
 
     // لأغراض العرض، نقوم بإزالة الطالب من القائمة حتى في حالة الخطأ
     students.value = students.value.filter(s => s.id !== studentToDelete.value.id)
@@ -954,7 +915,7 @@ const deleteStudent = async () => {
 // إضافة متغير حالة تحميل الحفظ
 const saveLoading = ref(false)
 
-// تعديل دالة saveStudent
+// تعديل دالة saveStudent لاستخدام Supabase
 const saveStudent = async () => {
   try {
     // التحقق من صحة البيانات
@@ -976,108 +937,81 @@ const saveStudent = async () => {
     // تفعيل حالة التحميل
     saveLoading.value = true
 
-    // حفظ مرجع للصورة المحددة والمعروضة قبل إرسال الطلب
-    const currentImagePreview = studentForm.value.image
-
-    let response
-
-    // Create FormData for file upload
-    const formData = new FormData()
-
-    // إضافة الحقول الأساسية
-    formData.append('name', studentForm.value.name)
-    formData.append('class_name', studentForm.value.class_id)  // في الخادم الخلفي، الحقل هو class_name
-    formData.append('section', studentForm.value.section_id)   // في الخادم الخلفي، الحقل هو section
-    formData.append('status', studentForm.value.status)       // إضافة حقل الحالة
-
-    // التحقق من وجود ملف صورة صالح
-    if (studentForm.value.imageFile && studentForm.value.imageFile instanceof File) {
-      // التحقق من نوع الملف وحجمه مرة أخرى للتأكد
-      if (studentForm.value.imageFile.type.startsWith('image/') &&
-          studentForm.value.imageFile.size <= 5 * 1024 * 1024) {
-        formData.append('image', studentForm.value.imageFile)
-        console.log('تم إرفاق ملف صورة للإرسال:', studentForm.value.imageFile.name)
-      } else {
-        console.warn('تم تخطي ملف الصورة لأنه غير صالح:',
-                   studentForm.value.imageFile.type, studentForm.value.imageFile.size)
-      }
-    } else {
-      console.log('لم يتم إرفاق ملف صورة جديد')
+    // إنشاء كائن بيانات الطالب للإرسال إلى Supabase
+    const studentData = {
+      name: studentForm.value.name,
+      class_id: studentForm.value.class_id,
+      section_id: studentForm.value.section_id,
+      status: studentForm.value.status || 'active'
     }
 
-    console.log('Saving student with data:', {
-      name: studentForm.value.name,
-      class_name: studentForm.value.class_id,
-      section: studentForm.value.section_id,
-      status: studentForm.value.status,
-      imageFile: studentForm.value.imageFile ? studentForm.value.imageFile.name : 'No file'
-    })
+    // إضافة الصورة إذا كانت موجودة
+    if (studentForm.value.image && typeof studentForm.value.image === 'string' && studentForm.value.image.startsWith('data:image')) {
+      // إذا كانت الصورة موجودة كـ Base64
+      studentData.image = studentForm.value.image
+      console.log('تم إرفاق صورة Base64 للإرسال')
+    } else if (studentForm.value.image && typeof studentForm.value.image === 'string') {
+      // إذا كانت الصورة موجودة كعنوان URL
+      studentData.photo_url = studentForm.value.image
+      console.log('استخدام عنوان URL للصورة الحالية:', studentForm.value.image)
+    } else {
+      console.log('لم يتم إرفاق ملف صورة')
+    }
+
+    console.log('Saving student with data:', studentData)
+
+    let savedStudent;
 
     if (isEditMode.value) {
       // Update existing student
-      response = await api.put(`students/${studentForm.value.id}/`, formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data'
+      try {
+        savedStudent = await StudentService.updateStudent(studentForm.value.id, studentData);
+        console.log('Student updated successfully:', savedStudent);
+
+        // Update student in list
+        const index = students.value.findIndex(s => s.id === studentForm.value.id)
+        if (index !== -1) {
+          students.value[index] = {
+            ...savedStudent,
+            // التأكد من أن الصورة موجودة
+            image: savedStudent.photo_url || null
+          }
         }
-      })
-
-      console.log('Student updated successfully:', response.data)
-      const imageUrl = response.data.image ? getStudentImage(response.data.image, response.data.name) : currentImagePreview;
-      console.log('صورة الطالب بعد التحديث:', response.data.image, ' -> ', imageUrl);
-
-      // تحويل البيانات المستلمة إلى الشكل المطلوب
-      const updatedStudent = {
-        id: response.data.id,
-        name: response.data.name,
-        class_id: response.data.class_name,
-        section_id: response.data.section,
-        class_name: response.data.class_name_display || '',
-        section: response.data.section_display || '',
-        status: studentForm.value.status, // نحتفظ بالحالة من النموذج
-        image: imageUrl
-      }
-
-      // Update student in list
-      const index = students.value.findIndex(s => s.id === studentForm.value.id)
-      if (index !== -1) {
-        students.value[index] = updatedStudent
+      } catch (updateError) {
+        console.error('Error updating student:', updateError);
+        throw updateError;
       }
     } else {
       // Create new student
-      response = await api.post('students/', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data'
-        }
-      })
+      try {
+        savedStudent = await StudentService.createStudent(studentData);
+        console.log('Student created successfully:', savedStudent);
 
-      console.log('Student created successfully:', response.data)
-      const imageUrl = response.data.image ? getStudentImage(response.data.image, response.data.name) : currentImagePreview;
-      console.log('صورة الطالب الجديد:', response.data.image, ' -> ', imageUrl);
-
-      // تحويل البيانات المستلمة إلى الشكل المطلوب
-      const newStudent = {
-        id: response.data.id,
-        name: response.data.name,
-        class_id: response.data.class_name,
-        section_id: response.data.section,
-        class_name: response.data.class_name_display || '',
-        section: response.data.section_display || '',
-        status: studentForm.value.status, // نحتفظ بالحالة من النموذج
-        image: imageUrl
+        // Add new student to list
+        students.value.push({
+          ...savedStudent,
+          // التأكد من أن الصورة موجودة
+          image: savedStudent.photo_url || null
+        })
+      } catch (createError) {
+        console.error('Error creating student:', createError);
+        throw createError;
       }
-
-      // Add new student to list
-      students.value.push(newStudent)
     }
+
+    // إبطال التخزين المؤقت للطلاب لأن البيانات تغيرت
+    const cacheKeyPattern = 'students:class:';
+    Object.keys(cacheStore.cache).forEach(key => {
+      if (key.startsWith(cacheKeyPattern)) {
+        cacheStore.remove(key);
+      }
+    });
 
     // Reset form and close dialog
     resetForm()
     showAddStudentDialog.value = false
   } catch (error) {
     console.error('Error saving student:', error)
-    if (error.response) {
-      console.error('Error response data:', error.response.data)
-    }
 
     // إذا فشلت العملية، نقوم بمحاكاة نجاحها لأغراض العرض
     if (isEditMode.value) {
@@ -1143,11 +1077,13 @@ const resetForm = () => {
 
 // Add dummy data for demo purposes
 const addDummyData = () => {
+  console.log('Adding dummy data for demo purposes')
+
   // تعريف الصفوف
   classes.value = [
-    { id: 1, name: 'الصف الأول' },
-    { id: 2, name: 'الصف الثاني' },
-    { id: 3, name: 'الصف الثالث' }
+    { id: 1, name: 'الصف الأول', description: 'الصف الأول الابتدائي' },
+    { id: 2, name: 'الصف الثاني', description: 'الصف الثاني الابتدائي' },
+    { id: 3, name: 'الصف الثالث', description: 'الصف الثالث الابتدائي' }
   ]
   console.log('Dummy classes:', classes.value)
 
@@ -1155,7 +1091,9 @@ const addDummyData = () => {
   sections.value = [
     { id: 1, name: 'أ' },
     { id: 2, name: 'ب' },
-    { id: 3, name: 'ج' }
+    { id: 3, name: 'ج' },
+    { id: 4, name: 'د' },
+    { id: 5, name: 'هـ' }
   ]
   console.log('Dummy sections:', sections.value)
 

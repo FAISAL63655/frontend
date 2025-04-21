@@ -139,7 +139,7 @@
                     variant="tonal"
                     color="primary"
                     icon
-                    :to="`/grades?class=${schedule.classId}&section=${schedule.sectionId}&subject=${schedule.subjectId}`"
+                    :to="`/unified-grades?class=${schedule.classId}&section=${schedule.sectionId}&subject=${schedule.subjectId}`"
                   >
                     <v-icon>mdi-arrow-left</v-icon>
                   </v-btn>
@@ -242,7 +242,7 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import api from '../services/api'
+import DashboardService from '../services/DashboardService'
 import NotificationService from '../services/NotificationService'
 
 // Import new components
@@ -315,63 +315,20 @@ onMounted(async () => {
 const fetchStats = async () => {
   isLoadingStats.value = true
   try {
-    // محاولة الحصول على الإحصائيات من API
-    const response = await api.get('/dashboard/stats/')
-    stats.value = response.data
+    // محاولة الحصول على الإحصائيات من DashboardService
+    const statsData = await DashboardService.getStats()
+    stats.value = statsData
     console.log('Stats loaded successfully:', stats.value)
   } catch (error) {
-    console.error('API Error:', error)
-    console.log('Endpoint /dashboard/stats not found, using actual data instead')
-
-    // التحقق من البيانات الفعلية من الباك إند
-    try {
-      // محاولة الحصول على عدد الطلاب من API
-      const studentsResponse = await api.get('/students/')
-      const studentsCount = studentsResponse.data.length || studentsResponse.data.count || 0
-      console.log('Fetched students count:', studentsCount)
-
-      // محاولة الحصول على عدد الواجبات النشطة من API
-      const today = new Date().toISOString().split('T')[0]
-      const assignmentsResponse = await api.get('/assignments/', {
-        params: {
-          due_date_gte: today
-        }
-      })
-      const assignmentsCount = assignmentsResponse.data.length || assignmentsResponse.data.count || 0
-      console.log('Fetched active assignments count:', assignmentsCount)
-
-      // محاولة الحصول على نسبة الحضور من API
-      const attendanceResponse = await api.get('/attendances/')
-      const attendanceRecords = attendanceResponse.data || []
-      const totalRecords = attendanceRecords.length
-      const presentRecords = attendanceRecords.filter(record => record.status === 'present').length
-      const attendanceRate = totalRecords > 0 ? Math.round((presentRecords / totalRecords) * 100) : 0
-      console.log('Calculated attendance rate:', attendanceRate, '% (', presentRecords, '/', totalRecords, ')')
-
-      // محاولة الحصول على عدد التنبيهات من API
-      const notificationsResponse = await api.get('/notifications/')
-      const notificationsCount = notificationsResponse.data.filter(n => !n.is_read).length || 0
-      console.log('Fetched unread notifications count:', notificationsCount)
-
-      // تحديث الإحصائيات بالبيانات الفعلية
-      stats.value = {
-        totalStudents: studentsCount,
-        attendanceRate: attendanceRate,
-        assignmentsCount: assignmentsCount,
-        alertsCount: notificationsCount
-      }
-      console.log('Stats compiled from actual data:', stats.value)
-    } catch (innerError) {
-      console.error('Error fetching actual data:', innerError)
-      // الرجوع إلى البيانات الوهمية
-      stats.value = {
-        totalStudents: 120,
-        attendanceRate: 92,
-        assignmentsCount: 5,
-        alertsCount: 3
-      }
-      console.log('Using fallback dummy data for stats')
+    console.error('Error fetching stats:', error)
+    // الرجوع إلى البيانات الوهمية
+    stats.value = {
+      totalStudents: 120,
+      attendanceRate: 92,
+      assignmentsCount: 5,
+      alertsCount: 3
     }
+    console.log('Using fallback dummy data for stats')
   } finally {
     isLoadingStats.value = false
   }
@@ -381,59 +338,14 @@ const fetchStats = async () => {
 const fetchTodaySchedule = async () => {
   isLoadingSchedule.value = true
   try {
-    const response = await api.get('/dashboard/today-schedule/')
-    if (response.data && response.data.length > 0) {
-      todaySchedule.value = response.data
-      console.log('Schedule loaded successfully from dashboard API:', todaySchedule.value)
-      return
+    // محاولة الحصول على جدول اليوم من DashboardService
+    const scheduleData = await DashboardService.getTodaySchedule()
+    if (scheduleData && scheduleData.length > 0) {
+      todaySchedule.value = scheduleData
+      console.log('Schedule loaded successfully:', todaySchedule.value)
     } else {
-      console.log('No schedule data returned from dashboard API, trying schedules API')
-    }
-
-    // إذا لم يتم العثور على جدول لليوم، نحاول الحصول على أي جدول
-    const schedulesResponse = await api.get('/schedules/')
-    if (schedulesResponse.data && schedulesResponse.data.length > 0) {
-      // تحويل بيانات الجدول إلى التنسيق المطلوب
-      todaySchedule.value = schedulesResponse.data.map(schedule => {
-        // الحصول على البيانات من الاستجابة
-        const subject = schedule.subject_display || schedule.subject_name || schedule.subject || 'مادة غير معروفة'
-        const className = schedule.class_name_display || schedule.class_name || schedule.class || 'صف غير معروف'
-        const section = schedule.section_display || schedule.section_name || schedule.section || 'أ'
-
-        // تحديد الوقت بناءً على رقم الحصة
-        let time = '8:00 - 8:45'
-        if (schedule.period === 1 || schedule.period === '1') time = '8:00 - 8:45'
-        else if (schedule.period === 2 || schedule.period === '2') time = '8:45 - 9:30'
-        else if (schedule.period === 3 || schedule.period === '3') time = '9:30 - 10:15'
-        else if (schedule.period === 4 || schedule.period === '4') time = '10:15 - 11:00'
-        else if (schedule.period === 5 || schedule.period === '5') time = '11:00 - 11:45'
-        else if (schedule.period === 6 || schedule.period === '6') time = '11:45 - 12:30'
-        else if (schedule.period === 7 || schedule.period === '7') time = '12:30 - 13:15'
-
-        return {
-          id: schedule.id,
-          subject: subject,
-          class: className,
-          section: section,
-          time: schedule.time || time,
-          duration: schedule.duration || 45,
-          classId: schedule.class_name_id || schedule.class_id || 1,
-          sectionId: schedule.section_id || 1,
-          subjectId: schedule.subject_id || 1,
-          period: schedule.period || 1,
-          day: schedule.day || 0
-        }
-      }).sort((a, b) => a.period - b.period) // ترتيب الحصص حسب رقم الحصة
-
-      console.log('Schedule compiled from schedules API:', todaySchedule.value)
-      return
-    }
-  } catch (error) {
-    console.error('Error fetching today schedule:', error)
-  } finally {
-    // إذا لم يتم العثور على أي جدول، نستخدم البيانات الوهمية
-    if (!todaySchedule.value || todaySchedule.value.length === 0) {
-      console.log('No schedule data found, using fallback dummy data')
+      console.log('No schedule data returned, using fallback dummy data')
+      // استخدام البيانات الوهمية
       todaySchedule.value = [
         {
           id: 1,
@@ -481,6 +393,56 @@ const fetchTodaySchedule = async () => {
         }
       ]
     }
+  } catch (error) {
+    console.error('Error fetching today schedule:', error)
+    // استخدام البيانات الوهمية
+    todaySchedule.value = [
+      {
+        id: 1,
+        subject: 'القرآن الكريم',
+        class: 'الصف الثالث',
+        section: 'أ',
+        time: '8:00 - 8:45',
+        duration: 45,
+        classId: 3,
+        sectionId: 1,
+        subjectId: 1
+      },
+      {
+        id: 2,
+        subject: 'التوحيد',
+        class: 'الصف الثالث',
+        section: 'ب',
+        time: '8:45 - 9:30',
+        duration: 45,
+        classId: 3,
+        sectionId: 2,
+        subjectId: 2
+      },
+      {
+        id: 3,
+        subject: 'الفقه',
+        class: 'الصف الرابع',
+        section: 'أ',
+        time: '9:30 - 10:15',
+        duration: 45,
+        classId: 4,
+        sectionId: 1,
+        subjectId: 3
+      },
+      {
+        id: 4,
+        subject: 'الحديث',
+        class: 'الصف الرابع',
+        section: 'ب',
+        time: '10:15 - 11:00',
+        duration: 45,
+        classId: 4,
+        sectionId: 2,
+        subjectId: 4
+      }
+    ]
+  } finally {
     isLoadingSchedule.value = false
   }
 }
@@ -489,25 +451,25 @@ const fetchTodaySchedule = async () => {
 const fetchRecentAlerts = async () => {
   isLoadingAlerts.value = true
   try {
-    // استخدام خدمة التنبيهات للحصول على التنبيهات غير المقروءة
-    const notifications = await NotificationService.getNotifications()
-    console.log('Notifications loaded successfully:', notifications)
+    // محاولة الحصول على التنبيهات من DashboardService
+    const alertsData = await DashboardService.getRecentAlerts()
+    console.log('Recent alerts loaded successfully:', alertsData)
 
     // تحويل التنبيهات إلى التنسيق المطلوب
-    recentAlerts.value = notifications.map(notification => ({
-      title: notification.title,
-      description: notification.message,
-      type: notification.type,
-      date: formatDate(notification.created_at),
-      id: notification.id,
-      is_read: notification.is_read,
-      link: notification.link
+    recentAlerts.value = alertsData.map(alert => ({
+      title: alert.title,
+      description: alert.message,
+      type: alert.type,
+      date: formatDate(alert.created_at),
+      id: alert.id,
+      is_read: alert.is_read,
+      link: alert.link
     })).slice(0, 5) // عرض أحدث 5 تنبيهات فقط
 
     // تحديث عدد التنبيهات في الإحصائيات
-    stats.value.alertsCount = notifications.filter(n => !n.is_read).length
+    stats.value.alertsCount = alertsData.filter(n => !n.is_read).length
   } catch (error) {
-    console.error('Error fetching notifications:', error)
+    console.error('Error fetching recent alerts:', error)
     // Fallback to dummy data
     recentAlerts.value = [
       {
@@ -537,8 +499,8 @@ const fetchRecentAlerts = async () => {
 // تعليم جميع التنبيهات كمقروءة
 const markAllAsRead = async () => {
   try {
-    await NotificationService.markAllAsRead()
-    console.log('Marked all notifications as read')
+    await DashboardService.markAllAlertsAsRead()
+    console.log('Marked all alerts as read')
 
     // تحديث حالة التنبيهات في الواجهة الأمامية
     recentAlerts.value.forEach(alert => {
@@ -548,7 +510,7 @@ const markAllAsRead = async () => {
     // تحديث عدد التنبيهات غير المقروءة
     stats.value.alertsCount = 0
   } catch (error) {
-    console.error('Error marking all notifications as read:', error)
+    console.error('Error marking all alerts as read:', error)
   }
 }
 

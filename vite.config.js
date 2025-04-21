@@ -45,15 +45,7 @@ export default defineConfig({
   // Configure server options
   server: {
     port: 5173,
-    strictPort: false,
-    // Configure proxy for API requests during development
-    proxy: {
-      '/api': {
-        target: 'http://localhost:8000',
-        changeOrigin: true,
-        secure: false
-      }
-    }
+    strictPort: false
   },
   preview: {
     port: 4173,

@@ -70,7 +70,6 @@
                 <tr>
                   <th>الرقم</th>
                   <th>اسم الفصل</th>
-                  <th>الصف</th>
                   <th>الإجراءات</th>
                 </tr>
               </thead>
@@ -78,7 +77,6 @@
                 <tr v-for="section in sections" :key="section.id">
                   <td>{{ section.id }}</td>
                   <td>{{ section.name }}</td>
-                  <td>{{ section.class_name }}</td>
                   <td>
                     <v-icon
                       size="small"
@@ -118,6 +116,8 @@
                   <th>اسم المادة</th>
                   <th>النوع</th>
                   <th>المادة الأساسية</th>
+                  <th>الحالة</th>
+                  <th>الترتيب</th>
                   <th>الإجراءات</th>
                 </tr>
               </thead>
@@ -134,6 +134,15 @@
                     </v-chip>
                   </td>
                   <td>{{ subject.parent_name || '-' }}</td>
+                  <td>
+                    <v-chip
+                      :color="subject.is_active ? 'success' : 'error'"
+                      size="small"
+                    >
+                      {{ subject.is_active ? 'مفعلة' : 'غير مفعلة' }}
+                    </v-chip>
+                  </td>
+                  <td>{{ subject.order_index || 0 }}</td>
                   <td>
                     <v-icon
                       size="small"
@@ -161,7 +170,7 @@
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue';
-import axios from 'axios';
+import { ClassService, SectionService, SubjectService } from '../services';
 import AddClassDialog from '../components/class/AddClassDialog.vue';
 import AddSectionDialog from '../components/section/AddSectionDialog.vue';
 import AddSubjectDialog from '../components/subject/AddSubjectDialog.vue';
@@ -196,8 +205,8 @@ const fetchData = async () => {
 const fetchClasses = async () => {
   loading.classes = true;
   try {
-    const response = await axios.get('classes/');
-    classes.value = response.data;
+    const data = await ClassService.getClasses();
+    classes.value = data;
   } catch (error) {
     console.error('خطأ في جلب الصفوف:', error);
     // في حالة الخطأ، استخدم بيانات افتراضية
@@ -215,26 +224,17 @@ const fetchClasses = async () => {
 const fetchSections = async () => {
   loading.sections = true;
   try {
-    const response = await axios.get('sections/');
-    // الحصول على الصفوف لإضافة اسم الصف
-    const classesResponse = await axios.get('classes/');
-    const classesMap = {};
-    classesResponse.data.forEach(cls => {
-      classesMap[cls.id] = cls.name;
-    });
-
-    // إضافة اسم الصف لكل فصل
-    sections.value = response.data.map(section => ({
-      ...section,
-      class_name: classesMap[section.class_id] || ''
-    }));
+    console.log('Fetching sections...');
+    const data = await SectionService.getSections();
+    console.log('Sections data:', data);
+    sections.value = data;
   } catch (error) {
     console.error('خطأ في جلب الفصول:', error);
     // في حالة الخطأ، استخدم بيانات افتراضية
     sections.value = [
-      { id: 1, name: 'أ', class_id: 1, class_name: 'الصف الأول' },
-      { id: 2, name: 'ب', class_id: 1, class_name: 'الصف الأول' },
-      { id: 3, name: 'أ', class_id: 2, class_name: 'الصف الثاني' }
+      { id: 1, name: 'أ' },
+      { id: 2, name: 'ب' },
+      { id: 3, name: 'ج' }
     ];
   } finally {
     loading.sections = false;
@@ -245,27 +245,28 @@ const fetchSections = async () => {
 const fetchSubjects = async () => {
   loading.subjects = true;
   try {
-    const response = await axios.get('subjects/');
+    const data = await SubjectService.getSubjects();
 
     // تحويل البيانات إلى الشكل المطلوب
-    subjects.value = response.data.map(subject => ({
+    subjects.value = data.map(subject => ({
       id: subject.id,
       name: subject.name,
-      is_main: subject.parent_subject === null,
-      parent_id: subject.parent_subject,
-      parent_name: subject.parent_subject_name || null
+      is_main: subject.parent_id === null,
+      parent_id: subject.parent_id ? subject.parent_id.id : null,
+      parent_name: subject.parent_id ? subject.parent_id.name : null,
+      is_active: subject.is_active !== undefined ? subject.is_active : true,
+      order_index: subject.order_index || 0
     }));
   } catch (error) {
     console.error('خطأ في جلب المواد:', error);
     // في حالة الخطأ، استخدم بيانات افتراضية
     subjects.value = [
-      { id: 1, name: 'الدراسات الإسلامية', is_main: true, parent_id: null, parent_name: null },
-      { id: 2, name: 'الفقه', is_main: false, parent_id: 1, parent_name: 'الدراسات الإسلامية' },
-      { id: 3, name: 'التوحيد', is_main: false, parent_id: 1, parent_name: 'الدراسات الإسلامية' },
-      { id: 4, name: 'القرآن', is_main: false, parent_id: 1, parent_name: 'الدراسات الإسلامية' },
-      { id: 5, name: 'اللغة العربية', is_main: true, parent_id: null, parent_name: null },
-      { id: 6, name: 'النحو', is_main: false, parent_id: 5, parent_name: 'اللغة العربية' },
-      { id: 7, name: 'الصرف', is_main: false, parent_id: 5, parent_name: 'اللغة العربية' }
+      { id: 1, name: 'الدراسات الإسلامية', is_main: true, parent_id: null, parent_name: null, is_active: true, order_index: 1 },
+      { id: 2, name: 'الفقه', is_main: false, parent_id: 1, parent_name: 'الدراسات الإسلامية', is_active: true, order_index: 2 },
+      { id: 3, name: 'التوحيد', is_main: false, parent_id: 1, parent_name: 'الدراسات الإسلامية', is_active: true, order_index: 3 },
+      { id: 4, name: 'القرآن', is_main: false, parent_id: 1, parent_name: 'الدراسات الإسلامية', is_active: true, order_index: 1 },
+      { id: 5, name: 'الرياضيات', is_main: true, parent_id: null, parent_name: null, is_active: true, order_index: 2 },
+      { id: 6, name: 'العلوم', is_main: true, parent_id: null, parent_name: null, is_active: true, order_index: 3 }
     ];
   } finally {
     loading.subjects = false;
@@ -277,13 +278,13 @@ const handleClassAdded = async (newClass) => {
   try {
     console.log('بيانات الصف الجديد:', newClass);
 
-    // إرسال الصف الجديد إلى الخادم
-    const response = await axios.post('classes/', {
+    // إرسال الصف الجديد إلى Supabase
+    const createdClass = await ClassService.createClass({
       name: newClass.name,
       description: newClass.description || ''
     });
 
-    console.log('استجابة الخادم:', response.data);
+    console.log('الصف المنشأ:', createdClass);
 
     // إعادة تحميل الصفوف بعد الإضافة
     fetchClasses();
@@ -292,9 +293,6 @@ const handleClassAdded = async (newClass) => {
     alert('تمت إضافة الصف بنجاح');
   } catch (error) {
     console.error('خطأ في إضافة الصف:', error);
-    if (error.response) {
-      console.error('بيانات الخطأ:', error.response.data);
-    }
     alert('حدث خطأ أثناء إضافة الصف');
   }
 };
@@ -304,13 +302,12 @@ const handleSectionAdded = async (newSection) => {
   try {
     console.log('بيانات الفصل الجديد:', newSection);
 
-    // إرسال الفصل الجديد إلى الخادم
-    const response = await axios.post('sections/', {
+    // إرسال الفصل الجديد إلى Supabase
+    const createdSection = await SectionService.createSection({
       name: newSection.name
-      // ملاحظة: لا يوجد حقل class_id في نموذج Section في الخادم الخلفي
     });
 
-    console.log('استجابة الخادم:', response.data);
+    console.log('الفصل المنشأ:', createdSection);
 
     // إعادة تحميل الفصول بعد الإضافة
     fetchSections();
@@ -319,9 +316,6 @@ const handleSectionAdded = async (newSection) => {
     alert('تمت إضافة الفصل بنجاح');
   } catch (error) {
     console.error('خطأ في إضافة الفصل:', error);
-    if (error.response) {
-      console.error('بيانات الخطأ:', error.response.data);
-    }
     alert('حدث خطأ أثناء إضافة الفصل');
   }
 };
@@ -331,13 +325,13 @@ const handleSubjectAdded = async (newSubject) => {
   try {
     console.log('بيانات المادة الجديدة:', newSubject);
 
-    // إرسال المادة الجديدة إلى الخادم
-    const response = await axios.post('subjects/', {
+    // إرسال المادة الجديدة إلى Supabase
+    const createdSubject = await SubjectService.createSubject({
       name: newSubject.name,
-      parent_subject: newSubject.is_main ? null : newSubject.parent_id
+      parent_id: newSubject.is_main ? null : newSubject.parent_id
     });
 
-    console.log('استجابة الخادم:', response.data);
+    console.log('المادة المنشأة:', createdSubject);
 
     // إعادة تحميل المواد بعد الإضافة
     fetchSubjects();
@@ -346,9 +340,6 @@ const handleSubjectAdded = async (newSubject) => {
     alert('تمت إضافة المادة بنجاح');
   } catch (error) {
     console.error('خطأ في إضافة المادة:', error);
-    if (error.response) {
-      console.error('بيانات الخطأ:', error.response.data);
-    }
     alert('حدث خطأ أثناء إضافة المادة');
   }
 };
@@ -362,8 +353,8 @@ const editClass = async (classItem) => {
   const newName = prompt('أدخل اسم الصف الجديد:', classItem.name);
   if (newName) {
     try {
-      // إرسال التعديل إلى الخادم
-      await axios.put(`classes/${classItem.id}/`, {
+      // إرسال التعديل إلى Supabase
+      await ClassService.updateClass(classItem.id, {
         name: newName,
         description: classItem.description
       });
@@ -389,8 +380,8 @@ const deleteClass = async (classItem) => {
   console.log('حذف الصف:', classItem);
   if (confirm(`هل أنت متأكد من حذف الصف "${classItem.name}"؟`)) {
     try {
-      // إرسال طلب الحذف إلى الخادم
-      await axios.delete(`classes/${classItem.id}/`);
+      // إرسال طلب الحذف إلى Supabase
+      await ClassService.deleteClass(classItem.id);
 
       // إزالة الصف من القائمة محلياً
       classes.value = classes.value.filter(c => c.id !== classItem.id);
@@ -413,10 +404,9 @@ const editSection = async (sectionItem) => {
   const newName = prompt('أدخل اسم الفصل الجديد:', sectionItem.name);
   if (newName) {
     try {
-      // إرسال التعديل إلى الخادم
-      await axios.put(`sections/${sectionItem.id}/`, {
+      // إرسال التعديل إلى Supabase
+      await SectionService.updateSection(sectionItem.id, {
         name: newName
-        // ملاحظة: لا يوجد حقل class_id في نموذج Section في الخادم الخلفي
       });
 
       // تحديث الاسم محلياً
@@ -440,8 +430,8 @@ const deleteSection = async (sectionItem) => {
   console.log('حذف الفصل:', sectionItem);
   if (confirm(`هل أنت متأكد من حذف الفصل "${sectionItem.name}"؟`)) {
     try {
-      // إرسال طلب الحذف إلى الخادم
-      await axios.delete(`sections/${sectionItem.id}/`);
+      // إرسال طلب الحذف إلى Supabase
+      await SectionService.deleteSection(sectionItem.id);
 
       // إزالة الفصل من القائمة محلياً
       sections.value = sections.value.filter(s => s.id !== sectionItem.id);
@@ -464,10 +454,12 @@ const editSubject = async (subjectItem) => {
   const newName = prompt('أدخل اسم المادة الجديد:', subjectItem.name);
   if (newName) {
     try {
-      // إرسال التعديل إلى الخادم
-      await axios.put(`subjects/${subjectItem.id}/`, {
+      // إرسال التعديل إلى Supabase
+      await SubjectService.updateSubject(subjectItem.id, {
         name: newName,
-        parent_subject: subjectItem.is_main ? null : subjectItem.parent_id
+        parent_id: subjectItem.is_main ? null : subjectItem.parent_id,
+        is_active: subjectItem.is_active,
+        order_index: subjectItem.order_index
       });
 
       // تحديث الاسم محلياً
@@ -491,8 +483,8 @@ const deleteSubject = async (subjectItem) => {
   console.log('حذف المادة:', subjectItem);
   if (confirm(`هل أنت متأكد من حذف المادة "${subjectItem.name}"؟`)) {
     try {
-      // إرسال طلب الحذف إلى الخادم
-      await axios.delete(`subjects/${subjectItem.id}/`);
+      // إرسال طلب الحذف إلى Supabase
+      await SubjectService.deleteSubject(subjectItem.id);
 
       // إزالة المادة من القائمة محلياً
       subjects.value = subjects.value.filter(s => s.id !== subjectItem.id);

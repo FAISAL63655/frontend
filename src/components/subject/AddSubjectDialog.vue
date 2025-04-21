@@ -42,6 +42,24 @@
                   :rules="[v => subjectData.is_main || !!v || 'المادة الأساسية مطلوبة']"
                 ></v-select>
               </v-col>
+              <v-col cols="12">
+                <v-switch
+                  v-model="subjectData.is_active"
+                  label="مفعلة"
+                  color="success"
+                  hide-details
+                ></v-switch>
+              </v-col>
+              <v-col cols="12">
+                <v-text-field
+                  v-model.number="subjectData.order_index"
+                  label="ترتيب الظهور"
+                  type="number"
+                  min="0"
+                  hint="الرقم الأقل يظهر أولاً"
+                  persistent-hint
+                ></v-text-field>
+              </v-col>
             </v-row>
           </v-form>
         </v-container>
@@ -62,7 +80,7 @@
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue';
-import axios from 'axios';
+import { SubjectService } from '../../services';
 
 // نموذج المادة الدراسية
 class Subject {
@@ -71,6 +89,8 @@ class Subject {
     this.name = data.name || '';
     this.parent_id = data.parent_id || null;
     this.is_main = data.is_main || false;
+    this.is_active = data.is_active !== undefined ? data.is_active : true;
+    this.order_index = data.order_index || 0;
   }
 }
 
@@ -88,17 +108,19 @@ const mainSubjects = ref([]);
 // جلب قائمة المواد الأساسية
 const fetchMainSubjects = async () => {
   try {
-    const response = await axios.get('subjects/');
-    // فلترة المواد الأساسية فقط (التي ليس لها مادة أساسية)
-    mainSubjects.value = response.data.filter(subject => subject.parent_subject === null);
+    const data = await SubjectService.getMainSubjects();
+    mainSubjects.value = data;
   } catch (error) {
     console.error('خطأ في جلب قائمة المواد الأساسية:', error);
     // في حالة الخطأ، استخدم بيانات افتراضية
     mainSubjects.value = [
-      { id: 1, name: 'الدراسات الإسلامية' },
-      { id: 2, name: 'اللغة العربية' },
-      { id: 3, name: 'الرياضيات' }
+      { id: 14, name: 'الدراسات الإسلامية' }
     ];
+
+    // محاولة جلب البيانات مرة أخرى بعد فترة
+    setTimeout(() => {
+      fetchMainSubjects();
+    }, 2000);
   }
 };
 
@@ -127,6 +149,8 @@ const resetForm = () => {
   subjectData.name = '';
   subjectData.parent_id = null;
   subjectData.is_main = false;
+  subjectData.is_active = true;
+  subjectData.order_index = 0;
 
   if (form.value) {
     form.value.resetValidation();
@@ -153,10 +177,11 @@ const save = async () => {
 
     // إنشاء نسخة من البيانات للتأكد من عدم فقدان القيم
     const subjectToSend = {
-      id: subjectData.id,
       name: subjectData.name,
-      parent_id: subjectData.parent_id,
-      is_main: subjectData.is_main
+      parent_id: subjectData.is_main ? null : subjectData.parent_id,
+      is_main: subjectData.is_main,
+      is_active: subjectData.is_active,
+      order_index: subjectData.order_index || 0
     };
     console.log('إرسال المادة:', subjectToSend);
 

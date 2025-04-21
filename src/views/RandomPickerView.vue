@@ -78,9 +78,9 @@
                 <RandomWheel
                   ref="wheelRef"
                   :items="getAvailableStudents"
-                  :spin-time="5000"
+                  :spin-time="3000"
                   spin-button-text="اختيار طالب عشوائي"
-                  @selected="onStudentSelected"
+                  @selected="(student) => onStudentSelected(student)"
                 />
               </div>
             </v-col>
@@ -148,36 +148,100 @@
           </v-row>
         </div>
 
-        <!-- عرض الطالب المختار -->
-        <div v-if="selectedStudent" class="selected-student-container text-center py-4 mt-6">
-          <v-scale-transition>
-            <div>
-              <v-avatar size="180" class="mb-4 elevation-5 student-avatar" :color="getAvatarColor(selectedStudent.name)">
-                <v-img v-if="selectedStudent.image" :src="selectedStudent.image" :alt="selectedStudent.name" cover></v-img>
-                <span v-else class="text-h3 text-white">{{ getInitials(selectedStudent.name) }}</span>
-              </v-avatar>
-              <h2 class="text-h3 font-weight-bold mb-2 student-name">{{ selectedStudent.name }}</h2>
-              <div class="d-flex justify-center flex-wrap">
-                <v-chip color="info" size="large" class="ma-2 px-4 py-2">
+        <!-- تم إزالة عرض الطالب المختار من هنا لأنه سيظهر في المربع الجديد في الأسفل -->
+
+        <!-- مربع الطالب المختار في الأسفل -->
+        <v-card
+          class="selected-student-box mt-6 elevation-3"
+          :class="{'student-selected-animation': selectedStudent}"
+          color="surface"
+        >
+          <v-card-title class="bg-primary text-white py-3 px-4 d-flex align-center">
+            <v-icon size="large" class="me-2">mdi-account-star</v-icon>
+            <span class="text-h5 font-weight-bold">الطالب المختار</span>
+          </v-card-title>
+
+          <v-card-text class="pa-4">
+            <v-row align="center">
+              <v-col cols="12" sm="4" class="text-center">
+                <v-avatar v-if="selectedStudent" size="100" class="elevation-3 mb-2" :color="getAvatarColor(selectedStudent.name)">
+                  <v-img v-if="selectedStudent.image" :src="selectedStudent.image" :alt="selectedStudent.name" cover></v-img>
+                  <span v-else class="text-h4 text-white">{{ getInitials(selectedStudent.name) }}</span>
+                </v-avatar>
+                <v-avatar v-else size="100" class="elevation-3 mb-2 grey lighten-2">
+                  <v-icon size="x-large" color="grey darken-2">mdi-account-question</v-icon>
+                </v-avatar>
+              </v-col>
+
+              <v-col cols="12" sm="8">
+                <h3 class="text-h4 font-weight-bold primary--text mb-2" v-if="selectedStudent">
+                  {{ selectedStudent.name }}
+                </h3>
+                <h3 class="text-h4 font-weight-medium text-grey mb-2" v-else>
+                  اختر طالب
+                </h3>
+
+                <v-chip v-if="selectedStudent" color="info" size="large" class="mb-2">
                   <v-icon start>mdi-school</v-icon>
                   {{ selectedStudent.class_name }} - {{ selectedStudent.section }}
                 </v-chip>
-                <v-btn
-                  color="error"
-                  variant="outlined"
-                  class="ma-2"
-                  @click="excludeStudent(selectedStudent)"
-                  :disabled="isStudentExcluded(selectedStudent.id)"
-                >
-                  <v-icon start>mdi-account-cancel</v-icon>
-                  استبعاد من العجلة
-                </v-btn>
-              </div>
-            </div>
-          </v-scale-transition>
-        </div>
+                <v-chip v-else color="grey" size="large" class="mb-2">
+                  <v-icon start>mdi-school</v-icon>
+                  لم يتم اختيار طالب بعد
+                </v-chip>
 
-        <!-- الطالب المختار سيظهر تحت العجلة مباشرة -->
+                <div v-if="selectedStudent" class="mt-2 text-body-1">
+                  <v-icon color="success" class="me-1">mdi-check-circle</v-icon>
+                  تم اختيار الطالب بنجاح!
+                </div>
+              </v-col>
+            </v-row>
+          </v-card-text>
+
+          <v-card-actions class="pa-4 justify-center">
+            <v-btn
+              color="primary"
+              size="large"
+              prepend-icon="mdi-refresh"
+              @click="pickRandomStudent"
+              class="px-6"
+              elevation="2"
+            >
+              اختيار طالب آخر
+            </v-btn>
+            <v-btn
+              color="error"
+              variant="outlined"
+              class="ms-2"
+              @click="selectedStudent && excludeStudent(selectedStudent); pickRandomStudent()"
+              :disabled="!selectedStudent || (selectedStudent && isStudentExcluded(selectedStudent.id))"
+            >
+              <v-icon start>mdi-account-cancel</v-icon>
+              استبعاد واختيار آخر
+            </v-btn>
+          </v-card-actions>
+
+          <!-- زر إضافي لاختيار طالب مباشرة من الخدمة -->
+          <v-card-actions class="pt-0 pb-4 justify-center">
+            <v-btn
+              color="info"
+              variant="text"
+              @click="async () => {
+                try {
+                  const randomStudent = await RandomPickerService.getRandomStudent(selectedClass, selectedSection);
+                  console.log('Direct random student from service:', randomStudent);
+                  updateSelectedStudent(randomStudent);
+                } catch (error) {
+                  console.error('Error getting direct random student:', error);
+                }
+              }"
+              class="text-caption"
+            >
+              <v-icon start size="small">mdi-lightning-bolt</v-icon>
+              اختيار مباشر بدون العجلة
+            </v-btn>
+          </v-card-actions>
+        </v-card>
       </v-card-text>
     </v-card>
 
@@ -316,10 +380,13 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
-import axios from 'axios'
+import { ref, computed, onMounted, watch } from 'vue'
 import RandomWheel from '@/components/RandomWheel.vue'
 import { getInitials, getAvatarColor } from '@/utils/imageUtils'
+import ClassService from '@/services/ClassService'
+import SectionService from '@/services/SectionService'
+import StudentService from '@/services/StudentService'
+import RandomPickerService from '@/services/RandomPickerService'
 
 // Data
 const classes = ref([])
@@ -401,18 +468,18 @@ onMounted(async () => {
     console.log('Fetching initial data...')
 
     // Fetch classes
-    const classesResponse = await axios.get('classes/')
-    console.log('Classes response:', classesResponse.data)
-    classes.value = classesResponse.data || []
+    const classesData = await ClassService.getClasses()
+    console.log('Classes data:', classesData)
+    classes.value = classesData || []
 
     if (classes.value.length > 0) {
       selectedClass.value = classes.value[0].id
     }
 
     // Fetch sections
-    const sectionsResponse = await axios.get('sections/')
-    console.log('Sections response:', sectionsResponse.data)
-    sections.value = sectionsResponse.data || []
+    const sectionsData = await SectionService.getSections()
+    console.log('Sections data:', sectionsData)
+    sections.value = sectionsData || []
 
     if (sections.value.length > 0) {
       selectedSection.value = sections.value[0].id
@@ -436,15 +503,13 @@ const fetchStudents = async () => {
 
   try {
     console.log('Fetching students for class:', selectedClass.value, 'section:', selectedSection.value)
-    const response = await axios.get('students/by_class_section/', {
-      params: {
-        class_id: selectedClass.value,
-        section_id: selectedSection.value
-      }
-    })
+    const studentsData = await StudentService.getStudentsByClassAndSection(
+      selectedClass.value,
+      selectedSection.value
+    )
 
-    console.log('Students response:', response.data)
-    students.value = response.data
+    console.log('Students data:', studentsData)
+    students.value = studentsData
 
     // إعادة تعيين الطالب المختار والمجموعات عند تغيير الصف أو الفصل
     selectedStudent.value = null
@@ -465,12 +530,92 @@ const wheelRef = ref(null)
 
 // معالجة اختيار الطالب من العجلة
 const onStudentSelected = (student) => {
-  console.log('Student selected from wheel:', student)
-  selectedStudent.value = student
+  console.log('HANDLER CALLED: Student selected from wheel:', student)
+
+  // إذا كان الطالب null، نعيد تعيين selectedStudent
+  if (student === null) {
+    selectedStudent.value = null;
+    console.log('Reset selectedStudent to null');
+    return;
+  }
+
+  // التأكد من أن الطالب موجود قبل تعيينه
+  if (student && student.id) {
+    console.log('VALID STUDENT RECEIVED:', student.name, 'with ID:', student.id);
+
+    // استخدام الوظيفة المساعدة لتحديث الطالب المختار
+    updateSelectedStudent(student);
+
+    // للتأكد من تحديث الواجهة، نقوم بتحديث الطالب مرة أخرى بعد فترة قصيرة
+    setTimeout(() => {
+      updateSelectedStudent(student);
+      console.log('RE-UPDATED selectedStudent.value after delay');
+    }, 200);
+  } else {
+    console.error('Invalid student object received:', student);
+
+    // إذا كان الطالب غير صالح، نحاول الحصول على طالب عشوائي من الخدمة
+    if (selectedClass.value && selectedSection.value) {
+      RandomPickerService.getRandomStudent(selectedClass.value, selectedSection.value)
+        .then(randomStudent => {
+          console.log('Random student from service (fallback in handler):', randomStudent);
+          updateSelectedStudent(randomStudent);
+        })
+        .catch(error => {
+          console.error('Error getting random student from service:', error);
+        });
+    }
+  }
 }
 
+// وظيفة مساعدة لتحديث الطالب المختار مباشرة
+const updateSelectedStudent = (student) => {
+  console.log('DIRECT UPDATE: Setting selectedStudent to:', student);
+  if (student && student.id) {
+    // نسخ الطالب لتجنب مشاكل المراجع
+    const studentCopy = {
+      ...student,
+      // التأكد من وجود جميع الحقول المطلوبة
+      name: student.name || 'طالب',
+      class_name: student.class_name || '',
+      section: student.section || '',
+      image: student.image || student.photo_url || null
+    };
+
+    // تعيين الطالب المختار مباشرة
+    selectedStudent.value = studentCopy;
+    console.log('UPDATED selectedStudent.value:', selectedStudent.value);
+
+    // تطبيق التأثير الحركي
+    const box = document.querySelector('.selected-student-box');
+    if (box) {
+      box.classList.remove('student-selected-animation');
+      setTimeout(() => {
+        box.classList.add('student-selected-animation');
+      }, 10);
+    }
+
+    // تشغيل صوت النجاح
+    try {
+      const audio = new Audio('/sounds/success.mp3');
+      audio.volume = 0.5;
+      audio.play();
+    } catch (audioError) {
+      console.log('تعذر تشغيل الصوت:', audioError);
+    }
+
+    // للتأكد من تحديث الواجهة، نقوم بتحديث الطالب مرة أخرى بعد فترة قصيرة
+    setTimeout(() => {
+      // إعادة تعيين الطالب للتأكد من تحديث الواجهة
+      selectedStudent.value = { ...studentCopy };
+      console.log('RE-UPDATED selectedStudent.value after delay in updateSelectedStudent');
+    }, 100);
+  }
+};
+
 // تدوير العجلة لاختيار طالب عشوائي
-const pickRandomStudent = () => {
+const pickRandomStudent = async () => {
+  console.log('pickRandomStudent called')
   if (!selectedClass.value || !selectedSection.value) {
     console.error('Class and section must be selected')
     return
@@ -483,9 +628,41 @@ const pickRandomStudent = () => {
     return
   }
 
-  // تدوير العجلة
-  if (wheelRef.value) {
-    wheelRef.value.spinWheel()
+  try {
+    // إذا لم تكن هناك عجلة أو كانت هناك مشكلة في العجلة، نستخدم الخدمة مباشرة
+    if (!wheelRef.value) {
+      console.log('wheelRef is not available, using RandomPickerService directly');
+      // استخدام RandomPickerService للحصول على طالب عشوائي
+      const randomStudent = await RandomPickerService.getRandomStudent(selectedClass.value, selectedSection.value);
+      console.log('Random student from service:', randomStudent);
+      updateSelectedStudent(randomStudent);
+      return;
+    }
+
+    // إذا كانت العجلة متاحة، نستخدمها
+    console.log('Spinning wheel...');
+    wheelRef.value.spinWheel();
+
+    // للتأكد من أن الطالب سيظهر، نستخدم الخدمة بعد فترة قصيرة إذا لم يتم تحديث الطالب
+    setTimeout(async () => {
+      if (!selectedStudent.value) {
+        console.log('No student selected after wheel spin, using RandomPickerService as fallback');
+        try {
+          const randomStudent = await RandomPickerService.getRandomStudent(selectedClass.value, selectedSection.value);
+          console.log('Random student from service (fallback):', randomStudent);
+          updateSelectedStudent(randomStudent);
+        } catch (fallbackError) {
+          console.error('Error in fallback random selection:', fallbackError);
+        }
+      }
+    }, 4000); // انتظار 4 ثواني للتأكد من انتهاء دوران العجلة
+  } catch (error) {
+    console.error('Error in pickRandomStudent:', error);
+
+    // في حالة الخطأ، نختار طالبًا عشوائيًا من القائمة المتاحة
+    const randomIndex = Math.floor(Math.random() * availableStudents.length);
+    const randomStudent = availableStudents[randomIndex];
+    updateSelectedStudent(randomStudent);
   }
 }
 
@@ -506,22 +683,20 @@ const createRandomGroups = async () => {
     // إضافة تأخير للتأثير الحركي
     await new Promise(resolve => setTimeout(resolve, 500))
 
-    console.log('Requesting random groups from API...')
-    const response = await axios.get('random/groups/', {
-      params: {
-        class_id: selectedClass.value,
-        section_id: selectedSection.value,
-        group_count: groupCount.value
-      }
-    })
+    console.log('Creating random groups...')
+    const groupsData = await RandomPickerService.createRandomGroups(
+      selectedClass.value,
+      selectedSection.value,
+      groupCount.value
+    )
 
-    console.log('Random groups response:', response.data)
+    console.log('Random groups data:', groupsData)
 
     // إضافة تأخير قبل عرض النتيجة النهائية
     await new Promise(resolve => setTimeout(resolve, 300))
 
     // عرض المجموعات المنشأة
-    groups.value = response.data
+    groups.value = groupsData
 
     // تشغيل صوت النجاح
     try {
@@ -564,6 +739,23 @@ const createRandomGroups = async () => {
     isCreatingGroups.value = false
   }
 }
+
+// Watch for changes in selectedStudent
+watch(selectedStudent, (newValue) => {
+  console.log('WATCHER: selectedStudent changed:', newValue)
+
+  // Force UI update when selectedStudent changes
+  if (newValue) {
+    // Apply animation to the box
+    const box = document.querySelector('.selected-student-box');
+    if (box) {
+      box.classList.remove('student-selected-animation');
+      setTimeout(() => {
+        box.classList.add('student-selected-animation');
+      }, 10);
+    }
+  }
+})
 
 // Add dummy data for demo purposes
 const addDummyData = () => {
@@ -943,5 +1135,35 @@ const addDummyData = () => {
 .v-theme--dark .student-list-avatar {
   border-color: rgba(var(--v-theme-primary), 0.3);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+/* تنسيقات مربع الطالب المختار في الأسفل */
+.selected-student-box {
+  border-radius: 12px;
+  overflow: hidden;
+  transition: all 0.3s ease;
+  animation: fadeIn 0.5s ease-out;
+  border: 1px solid rgba(var(--v-theme-primary), 0.1);
+}
+
+.selected-student-box:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1) !important;
+}
+
+.v-theme--dark .selected-student-box {
+  border-color: rgba(var(--v-theme-primary), 0.2);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3) !important;
+}
+
+/* تأثير حركي عند اختيار طالب جديد */
+@keyframes celebrateSelection {
+  0% { transform: scale(0.95); box-shadow: 0 0 0 rgba(var(--v-theme-primary), 0); }
+  50% { transform: scale(1.02); box-shadow: 0 0 20px rgba(var(--v-theme-primary), 0.3); }
+  100% { transform: scale(1); box-shadow: 0 0 10px rgba(var(--v-theme-primary), 0.1); }
+}
+
+.student-selected-animation {
+  animation: celebrateSelection 0.8s ease-out;
 }
 </style>

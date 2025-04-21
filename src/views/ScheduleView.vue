@@ -278,7 +278,10 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import axios from 'axios'
+import ClassService from '../services/ClassService'
+import SectionService from '../services/SectionService'
+import SubjectService from '../services/SubjectService'
+import ScheduleService from '../services/ScheduleService'
 
 // Data
 const classes = ref([])
@@ -326,8 +329,8 @@ const scheduleForm = ref({
 onMounted(async () => {
   try {
     // Fetch classes
-    const classesResponse = await axios.get('classes/')
-    classes.value = classesResponse.data || []
+    const classesData = await ClassService.getClasses()
+    classes.value = classesData || []
 
     console.log('Fetched classes:', classes.value)
 
@@ -336,8 +339,8 @@ onMounted(async () => {
     }
 
     // Fetch sections
-    const sectionsResponse = await axios.get('sections/')
-    sections.value = sectionsResponse.data || []
+    const sectionsData = await SectionService.getSections()
+    sections.value = sectionsData || []
 
     console.log('Fetched sections:', sections.value)
 
@@ -346,8 +349,8 @@ onMounted(async () => {
     }
 
     // Fetch subjects
-    const subjectsResponse = await axios.get('subjects/')
-    subjects.value = subjectsResponse.data || []
+    const subjectsData = await SubjectService.getSubjects()
+    subjects.value = subjectsData || []
 
     console.log('Fetched subjects:', subjects.value)
 
@@ -355,9 +358,6 @@ onMounted(async () => {
     await fetchSchedule()
   } catch (error) {
     console.error('Error fetching initial data:', error)
-    if (error.response) {
-      console.error('Error response data:', error.response.data)
-    }
     // For demo purposes, add some dummy data if API fails
     addDummyData()
   }
@@ -368,34 +368,29 @@ const fetchSchedule = async () => {
   if (!selectedClass.value || !selectedSection.value) return
 
   try {
-    const response = await axios.get('schedules/by_class_section/', {
-      params: {
-        class_id: selectedClass.value,
-        section_id: selectedSection.value
-      }
-    })
+    const scheduleData = await ScheduleService.getSchedulesByClassAndSection(
+      selectedClass.value,
+      selectedSection.value
+    )
 
-    console.log('Fetched schedule data:', response.data)
+    console.log('Fetched schedule data:', scheduleData)
 
     // تحويل البيانات المستلمة إلى الشكل المطلوب
-    scheduleItems.value = response.data.map(item => ({
+    scheduleItems.value = scheduleData.map(item => ({
       id: item.id,
-      day: item.day,
+      day: item.day_of_week,
       period: item.period,
-      class_id: item.class_name,  // في الخادم الخلفي، الحقل هو class_name وليس class_id
-      section_id: item.section,   // في الخادم الخلفي، الحقل هو section وليس section_id
-      subject_id: item.subject,   // في الخادم الخلفي، الحقل هو subject وليس subject_id
-      class: item.class_name_display || '',  // من ScheduleDetailSerializer
-      section: item.section_display || '',    // من ScheduleDetailSerializer
-      subject: item.subject_display || ''     // من ScheduleDetailSerializer
+      class_id: item.class_id,
+      section_id: item.section_id,
+      subject_id: item.subject_id,
+      class: item.class_name || item.class,
+      section: item.section_name || item.section,
+      subject: item.subject_name || item.subject
     }))
 
     console.log('Processed schedule items:', scheduleItems.value)
   } catch (error) {
     console.error('Error fetching schedule:', error)
-    if (error.response) {
-      console.error('Error response data:', error.response.data)
-    }
     // For demo purposes, add some dummy data if API fails
     addDummyData()
   }
@@ -517,74 +512,65 @@ const saveSchedule = async () => {
       subject_id: scheduleForm.value.subject_id
     })
 
-    let response
-
-    // إعداد البيانات للإرسال إلى الخادم الخلفي
+    // إعداد البيانات للإرسال إلى Supabase
     const scheduleData = {
-      day: Number(day),  // التأكد من أن القيمة رقمية
+      day_of_week: Number(day),  // التأكد من أن القيمة رقمية
       period: Number(period),  // التأكد من أن القيمة رقمية
-      class_name: scheduleForm.value.class_id,  // في الخادم الخلفي، الحقل هو class_name
-      section: scheduleForm.value.section_id,    // في الخادم الخلفي، الحقل هو section
-      subject: scheduleForm.value.subject_id     // في الخادم الخلفي، الحقل هو subject
+      class_id: scheduleForm.value.class_id,
+      section_id: scheduleForm.value.section_id,
+      subject_id: scheduleForm.value.subject_id
     }
 
     console.log('Saving schedule with data:', scheduleData)
 
+    let savedSchedule;
+
     if (isEditMode.value && scheduleForm.value.id) {
       // Update existing schedule
       console.log(`Updating schedule with ID: ${scheduleForm.value.id}`)
-      response = await axios.put(`schedules/${scheduleForm.value.id}/`, scheduleData)
+      savedSchedule = await ScheduleService.updateSchedule(scheduleForm.value.id, scheduleData)
 
-      console.log('Schedule updated successfully:', response.data)
-
-      // تحويل البيانات المستلمة إلى الشكل المطلوب
-      const updatedSchedule = {
-        id: response.data.id,
-        day: response.data.day,
-        period: response.data.period,
-        class_id: response.data.class_name,
-        section_id: response.data.section,
-        subject_id: response.data.subject,
-        class: response.data.class_name_display || '',
-        section: response.data.section_display || '',
-        subject: response.data.subject_display || ''
-      }
+      console.log('Schedule updated successfully:', savedSchedule)
 
       // Update schedule item in list
       const index = scheduleItems.value.findIndex(item => item.id === scheduleForm.value.id)
       if (index !== -1) {
-        scheduleItems.value[index] = updatedSchedule
+        scheduleItems.value[index] = {
+          id: savedSchedule.id,
+          day: savedSchedule.day_of_week,
+          period: savedSchedule.period,
+          class_id: savedSchedule.class_id,
+          section_id: savedSchedule.section_id,
+          subject_id: savedSchedule.subject_id,
+          class: savedSchedule.class_name || savedSchedule.class,
+          section: savedSchedule.section_name || savedSchedule.section,
+          subject: savedSchedule.subject_name || savedSchedule.subject
+        }
       }
     } else {
       // Create new schedule
-      response = await axios.post('schedules/', scheduleData)
+      savedSchedule = await ScheduleService.createSchedule(scheduleData)
 
-      console.log('Schedule created successfully:', response.data)
-
-      // تحويل البيانات المستلمة إلى الشكل المطلوب
-      const newSchedule = {
-        id: response.data.id,
-        day: response.data.day,
-        period: response.data.period,
-        class_id: response.data.class_name,
-        section_id: response.data.section,
-        subject_id: response.data.subject,
-        class: response.data.class_name_display || '',
-        section: response.data.section_display || '',
-        subject: response.data.subject_display || ''
-      }
+      console.log('Schedule created successfully:', savedSchedule)
 
       // Add new schedule item to list
-      scheduleItems.value.push(newSchedule)
+      scheduleItems.value.push({
+        id: savedSchedule.id,
+        day: savedSchedule.day_of_week,
+        period: savedSchedule.period,
+        class_id: savedSchedule.class_id,
+        section_id: savedSchedule.section_id,
+        subject_id: savedSchedule.subject_id,
+        class: savedSchedule.class_name || savedSchedule.class,
+        section: savedSchedule.section_name || savedSchedule.section,
+        subject: savedSchedule.subject_name || savedSchedule.subject
+      })
     }
 
     // Close dialog
     showScheduleDialog.value = false
   } catch (error) {
     console.error('Error saving schedule:', error)
-    if (error.response) {
-      console.error('Error response data:', error.response.data)
-    }
 
     // لأغراض العرض، نقوم بمحاكاة نجاح العملية
     const classObj = classes.value.find(c => c.id === scheduleForm.value.class_id)
@@ -638,8 +624,8 @@ const deleteSchedule = async () => {
   try {
     console.log('Deleting schedule with ID:', scheduleForm.value.id)
 
-    // إرسال طلب حذف الجدول إلى الخادم الخلفي
-    await axios.delete(`schedules/${scheduleForm.value.id}/`)
+    // إرسال طلب حذف الجدول إلى Supabase
+    await ScheduleService.deleteSchedule(scheduleForm.value.id)
 
     console.log('Schedule deleted successfully')
 

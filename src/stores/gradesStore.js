@@ -1,6 +1,11 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import api from '@/services/apiConfig'
+import GradeService from '@/services/GradeService'
+import AssignmentService from '@/services/AssignmentService'
+import AssignmentSubmissionService from '@/services/AssignmentSubmissionService'
+import StudentService from '@/services/StudentService'
+import supabase from '@/services/supabaseClient'
 
 export const useGradesStore = defineStore('grades', () => {
   // Estado
@@ -107,6 +112,24 @@ export const useGradesStore = defineStore('grades', () => {
     return now - lastFetch.value[key] < CACHE_EXPIRY
   }
 
+  /**
+   * دالة لمسح الكاش
+   * @param {string} key مفتاح الكاش (اختياري)
+   */
+  const clearCache = (key = null) => {
+    if (key) {
+      // مسح كاش محدد
+      console.log(`Clearing cache for key: ${key}`)
+      lastFetch.value[key] = null
+    } else {
+      // مسح جميع الكاش
+      console.log('Clearing all cache')
+      Object.keys(lastFetch.value).forEach(k => {
+        lastFetch.value[k] = null
+      })
+    }
+  }
+
   // Acciones
   const fetchStudentsByClassAndSection = async (classId, sectionId) => {
     const key = `students-${classId}-${sectionId}`
@@ -119,19 +142,17 @@ export const useGradesStore = defineStore('grades', () => {
 
     try {
       console.log('Fetching students for class', classId, 'section', sectionId)
-      const response = await api.get('students/', {
-        params: {
-          class_name: classId,
-          section: sectionId
-        }
-      })
+
+      // استخدام خدمة الطلاب للحصول على الطلاب من Supabase
+      const studentsData = await StudentService.getStudentsByClassAndSection(classId, sectionId)
+      console.log('Students data from Supabase:', studentsData)
 
       // Guardar en caché
       const cacheKey = `${classId}-${sectionId}`
-      students.value[cacheKey] = response.data
+      students.value[cacheKey] = studentsData
       lastFetch.value[key] = Date.now()
 
-      return response.data
+      return studentsData
     } catch (error) {
       console.error('Error fetching students:', error)
       // Inicializar un array vacío para esta clase y sección
@@ -168,46 +189,9 @@ export const useGradesStore = defineStore('grades', () => {
 
     try {
       console.log('Fetching grades for multiple students:', studentIds)
-
-      // محاولة استخدام نقطة النهاية batch أولاً
-      try {
-        console.log('Attempting to use batch endpoint')
-        const batchResponse = await api.get('grades/batch/', {
-          params: {
-            student_ids: studentIds.join(',')
-          }
-        })
-
-        console.log('Batch endpoint response:', batchResponse.data)
-        const batchResults = batchResponse.data?.results || []
-
-        // تنظيم النتائج حسب الطالب
-        studentIds.forEach(studentId => {
-          const studentGrades = batchResults.filter(grade => {
-            const matches = grade.student === parseInt(studentId) || grade.student === studentId
-            return matches
-          })
-          console.log(`Grades for student ${studentId} from batch:`, studentGrades)
-          grades.value[studentId] = studentGrades
-          lastFetch.value[`grades-${studentId}`] = Date.now()
-        })
-
-        return batchResults
-      } catch (batchError) {
-        console.error('Error using batch endpoint, falling back to individual requests:', batchError)
-        console.error('Error details:', batchError.response?.data || batchError.message)
-      }
-
-      // تقسيم الطلاب إلى مجموعات أصغر (10 طلاب في كل مجموعة) لتجنب الأخطاء
-      const chunkSize = 10;
-      const chunks = [];
-      for (let i = 0; i < studentIds.length; i += chunkSize) {
-          chunks.push(studentIds.slice(i, i + chunkSize));
-      }
-
       let allResults = [];
 
-      // جلب البيانات لكل طالب فرديًا
+      // جلب البيانات لكل طالب فرديًا باستخدام GradeService
       for (const studentId of studentIds) {
         const key = `grades-${studentId}`;
 
@@ -219,21 +203,15 @@ export const useGradesStore = defineStore('grades', () => {
         }
 
         try {
-          console.log(`Making individual request for student ${studentId}`)
-          const response = await api.get('grades/', {
-            params: {
-              student: studentId
-            }
-          });
+          console.log(`Fetching grades for student ${studentId} using GradeService`)
+          const studentGrades = await GradeService.getGradesByStudent(studentId);
 
-          console.log(`Response for student ${studentId}:`, response.data)
-          const studentGrades = response.data?.results || [];
+          console.log(`Grades for student ${studentId}:`, studentGrades)
           grades.value[studentId] = studentGrades;
           lastFetch.value[key] = Date.now();
           allResults = [...allResults, ...studentGrades];
         } catch (err) {
           console.error(`Error fetching grades for student ${studentId}:`, err);
-          console.error('Error details:', err.response?.data || err.message);
           grades.value[studentId] = [];
           lastFetch.value[key] = Date.now();
         }
@@ -242,7 +220,6 @@ export const useGradesStore = defineStore('grades', () => {
       return allResults;
     } catch (error) {
       console.error('Error fetching grades for students:', error);
-      console.error('Error details:', error.response?.data || error.message);
 
       // استخدام الطلبات الفردية في حال فشل الطلب الرئيسي
       console.log('Falling back to individual requests');
@@ -259,19 +236,15 @@ export const useGradesStore = defineStore('grades', () => {
         }
 
         try {
-          console.log(`Making individual request for student ${id}`)
-          const response = await api.get('grades/', {
-            params: { student: id }
-          });
+          console.log(`Fetching grades for student ${id} using GradeService`)
+          const studentGrades = await GradeService.getGradesByStudent(id);
 
-          console.log(`Response for student ${id}:`, response.data)
-          const studentGrades = response.data?.results || [];
+          console.log(`Grades for student ${id}:`, studentGrades)
           grades.value[id] = studentGrades;
           lastFetch.value[key] = Date.now();
           results.push(...studentGrades);
         } catch (err) {
           console.error(`Error fetching grades for student ${id}:`, err);
-          console.error('Error details:', err.response?.data || err.message);
           grades.value[id] = [];
           lastFetch.value[key] = Date.now();
         }
@@ -297,24 +270,21 @@ export const useGradesStore = defineStore('grades', () => {
 
     try {
       console.log('Fetching attendance for date', date)
-      const response = await api.get('attendances/by_date/', {
-        params: {
-          date: date,
-          class_name: classId,
-          section: sectionId
-        }
-      })
+
+      // استخدام خدمة الحضور للحصول على بيانات الحضور من Supabase
+      const attendanceData = await GradeService.getAttendanceByDate(date, classId, sectionId)
+      console.log('Attendance data from Supabase:', attendanceData)
 
       // Guardar en caché
-      if (response.data) {
-        response.data.forEach(record => {
-          const recordKey = `${record.student}-${date}`
+      if (attendanceData && attendanceData.length > 0) {
+        attendanceData.forEach(record => {
+          const recordKey = `${record.student_id}-${date}`
           attendance.value[recordKey] = record
         })
       }
 
       lastFetch.value[key] = Date.now()
-      return response.data
+      return attendanceData
     } catch (error) {
       console.error('Error fetching attendance:', error)
       // Inicializar valores por defecto para todos los estudiantes
@@ -334,18 +304,15 @@ export const useGradesStore = defineStore('grades', () => {
 
     try {
       console.log('Fetching assignments for subject', subjectId)
-      const response = await api.get('assignments/', {
-        params: {
-          subject: subjectId,
-          ordering: '-due_date'
-        }
-      })
+
+      // استخدام خدمة الواجبات للحصول على الواجبات
+      const assignmentsData = await AssignmentService.getAssignments({ subjectId })
 
       // Guardar en caché
-      assignments.value[subjectId] = response.data || []
+      assignments.value[subjectId] = assignmentsData || []
       lastFetch.value[key] = Date.now()
 
-      return response.data
+      return assignmentsData
     } catch (error) {
       console.error('Error fetching assignments:', error)
       // Inicializar un array vacío para este subject
@@ -363,27 +330,32 @@ export const useGradesStore = defineStore('grades', () => {
     // Si los datos están en caché y son válidos, no hacer la solicitud
     if (isCacheValid(key)) {
       console.log('Using cached submissions data for assignment', assignmentId)
-      return submissions.value
+      // تحويل الكائن إلى مصفوفة للحفاظ على التوافق
+      const submissionsArray = Object.values(submissions.value).filter(s =>
+        s && s.assignment_id === parseInt(assignmentId)
+      )
+      return submissionsArray
     }
+
+    // إعادة تعيين الكاش للتأكد من تحديث البيانات
+    lastFetch.value[key] = null
 
     try {
       console.log('Fetching submissions for assignment', assignmentId)
-      const response = await api.get('assignment-submissions/by_assignment/', {
-        params: {
-          assignment_id: assignmentId
-        }
-      })
+
+      // استخدام خدمة تسليمات الواجبات للحصول على التسليمات
+      const submissionsData = await AssignmentSubmissionService.getSubmissionsByAssignment(assignmentId)
 
       // Guardar en caché
-      if (response.data) {
-        response.data.forEach(submission => {
-          const submissionKey = `${submission.student}-${assignmentId}`
+      if (submissionsData && submissionsData.length > 0) {
+        submissionsData.forEach(submission => {
+          const submissionKey = `${submission.student_id}-${assignmentId}`
           submissions.value[submissionKey] = submission
         })
       }
 
       lastFetch.value[key] = Date.now()
-      return response.data
+      return submissionsData
     } catch (error) {
       console.error('Error fetching submissions:', error)
       // Inicializar valores vacíos para todos los estudiantes
@@ -399,15 +371,7 @@ export const useGradesStore = defineStore('grades', () => {
     }
   }
 
-  // Limpiar caché
-  const clearCache = () => {
-    students.value = {}
-    grades.value = {}
-    attendance.value = {}
-    assignments.value = {}
-    submissions.value = {}
-    lastFetch.value = {}
-  }
+
 
   // دوال حفظ البيانات على الخادم
   const saveGrade = async (gradeData) => {
@@ -420,7 +384,7 @@ export const useGradesStore = defineStore('grades', () => {
       }
 
       // التأكد من وجود حقل type وأنه من القيم المسموح بها
-      const validTypes = ['theory', 'practical', 'participation', 'quran', 'final']
+      const validTypes = ['theory', 'practical', 'participation', 'quran', 'final', 'homework']
       if (!gradeData.type || !validTypes.includes(gradeData.type)) {
         // إذا لم يكن موجوداً أو غير صحيح، نستخدم القيمة 'theory' كقيمة افتراضية
         console.warn(`Invalid grade type: ${gradeData.type}, using 'theory' instead`)
@@ -459,24 +423,77 @@ export const useGradesStore = defineStore('grades', () => {
         }
       }
 
+      // إعداد بيانات الدرجة للحفظ في Supabase
+      const gradeRecord = {
+        student_id: gradeData.student,
+        subject_id: gradeData.subject,
+        date: gradeData.date,
+        grade_type: gradeData.type,
+        score: gradeData.score,
+        max_score: gradeData.max_score,
+        notes: gradeData.notes || null
+      };
+
+      console.log('Grade record to save:', gradeRecord);
+
       // التحقق من وجود معرف للدرجة
       if (gradeData.id) {
-        // تحديث درجة موجودة
-        const response = await api.put(`grades/${gradeData.id}/`, gradeData)
+        // تحديث درجة موجودة باستخدام GradeService
+        console.log(`Updating grade with id ${gradeData.id} using GradeService`);
+        const updatedGrade = await GradeService.updateGrade(gradeData.id, gradeRecord);
 
         // تحديث الكاش
-        if (response.data && grades.value[gradeData.student]) {
+        if (updatedGrade && grades.value[gradeData.student]) {
           const index = grades.value[gradeData.student].findIndex(g => g.id === gradeData.id)
           if (index !== -1) {
-            grades.value[gradeData.student][index] = response.data
+            grades.value[gradeData.student][index] = {
+              ...updatedGrade,
+              student: updatedGrade.student_id,
+              subject: updatedGrade.subject_id
+            }
           }
+
+          // إعادة تعيين كاش الدرجات للطالب
+          const studentCacheKey = `grades-${gradeData.student}`
+          lastFetch.value[studentCacheKey] = null
         }
 
-        return response.data
+        return updatedGrade
       } else {
         // البحث عن درجة موجودة بنفس النوع والتاريخ والطالب والمادة
         let existingGrade = null
-        if (grades.value[gradeData.student]) {
+
+        // البحث في قاعدة البيانات عن درجة موجودة
+        let existingGradeFromDB = null;
+        try {
+          const { data, error } = await supabase
+            .from('grades')
+            .select('*')
+            .eq('student_id', gradeData.student)
+            .eq('subject_id', gradeData.subject)
+            .eq('grade_type', gradeData.type)
+            .eq('date', gradeData.date)
+            .limit(1);
+
+          if (error) {
+            console.error('Error checking for existing grade:', error);
+          } else if (data && data.length > 0) {
+            existingGradeFromDB = data[0];
+          }
+        } catch (error) {
+          console.error('Exception checking for existing grade:', error);
+        }
+
+        if (existingGradeFromDB) {
+          existingGrade = {
+            ...existingGradeFromDB,
+            id: existingGradeFromDB.id,
+            type: existingGradeFromDB.grade_type,
+            student: existingGradeFromDB.student_id,
+            subject: existingGradeFromDB.subject_id
+          };
+        } else if (grades.value[gradeData.student]) {
+          // إذا لم نجد في قاعدة البيانات، نبحث في الكاش
           existingGrade = grades.value[gradeData.student].find(g =>
             g.type === gradeData.type &&
             g.date === gradeData.date &&
@@ -485,32 +502,49 @@ export const useGradesStore = defineStore('grades', () => {
         }
 
         if (existingGrade) {
-          // تحديث درجة موجودة
-          const updateData = { ...gradeData, id: existingGrade.id }
-          const response = await api.put(`grades/${existingGrade.id}/`, updateData)
+          // تحديث درجة موجودة باستخدام GradeService
+          console.log(`Updating existing grade with id ${existingGrade.id} using GradeService`);
+          const updatedGrade = await GradeService.updateGrade(existingGrade.id, gradeRecord);
 
           // تحديث الكاش
-          if (response.data && grades.value[gradeData.student]) {
+          if (updatedGrade && grades.value[gradeData.student]) {
             const index = grades.value[gradeData.student].findIndex(g => g.id === existingGrade.id)
             if (index !== -1) {
-              grades.value[gradeData.student][index] = response.data
+              grades.value[gradeData.student][index] = {
+                ...updatedGrade,
+                student: updatedGrade.student_id,
+                subject: updatedGrade.subject_id
+              }
             }
+
+            // إعادة تعيين كاش الدرجات للطالب
+            const studentCacheKey = `grades-${gradeData.student}`
+            lastFetch.value[studentCacheKey] = null
           }
 
-          return response.data
+          return updatedGrade
         } else {
-          // إنشاء درجة جديدة
-          const response = await api.post('grades/', gradeData)
+          // إنشاء درجة جديدة باستخدام GradeService
+          console.log(`Creating new grade for student ${gradeData.student} using GradeService`);
+          const newGrade = await GradeService.createGrade(gradeRecord);
 
           // تحديث الكاش
-          if (response.data) {
+          if (newGrade) {
             if (!grades.value[gradeData.student]) {
               grades.value[gradeData.student] = []
             }
-            grades.value[gradeData.student].push(response.data)
+            grades.value[gradeData.student].push({
+              ...newGrade,
+              student: newGrade.student_id,
+              subject: newGrade.subject_id
+            })
+
+            // إعادة تعيين كاش الدرجات للطالب
+            const studentCacheKey = `grades-${gradeData.student}`
+            lastFetch.value[studentCacheKey] = null
           }
 
-          return response.data
+          return newGrade
         }
       }
     } catch (error) {
@@ -532,43 +566,122 @@ export const useGradesStore = defineStore('grades', () => {
       const key = `${attendanceData.student}-${attendanceData.date}`
       const existingAttendance = attendance.value[key]
 
-      // التأكد من وجود حقل schedule
-      if (!attendanceData.schedule) {
-        // إذا لم يكن موجوداً، نستخدم القيمة 1 كقيمة افتراضية
-        attendanceData.schedule = 1
+      // التحقق من وجود سجل حضور في قاعدة البيانات لنفس الطالب والتاريخ
+      const { data: existingRecords, error: searchError } = await supabase
+        .from('attendance')
+        .select('id')
+        .eq('student_id', attendanceData.student)
+        .eq('date', attendanceData.date)
+
+      if (searchError) {
+        console.error('Error searching for existing attendance records:', searchError)
+        throw searchError
       }
 
-      if (existingAttendance && existingAttendance.id) {
-        // تحديث سجل حضور موجود
-        const updateData = { ...attendanceData, id: existingAttendance.id }
-        const response = await api.put(`attendances/${existingAttendance.id}/`, updateData)
+      // إعداد بيانات الحضور للحفظ في Supabase
+      const attendanceRecord = {
+        student_id: attendanceData.student,
+        date: attendanceData.date,
+        status: attendanceData.status,
+        notes: attendanceData.notes || null
+      };
 
-        // تحديث الكاش
-        if (response.data) {
-          attendance.value[key] = response.data
+      // التحقق من وجود سجل حضور موجود لنفس الطالب والتاريخ
+      if (existingRecords && existingRecords.length > 0) {
+        // تحديث سجل حضور موجود باستخدام Supabase
+        console.log(`Updating existing attendance record with id ${existingRecords[0].id}`);
+
+        const { data, error } = await supabase
+          .from('attendance')
+          .update(attendanceRecord)
+          .eq('id', existingRecords[0].id)
+          .select();
+
+        if (error) {
+          console.error(`Error updating attendance record:`, error);
+          throw error;
         }
 
-        return response.data
+        // تحديث الكاش
+        if (data && data.length > 0) {
+          attendance.value[key] = {
+            ...data[0],
+            student: data[0].student_id
+          }
+        }
+
+        return data[0];
+      } else if (existingAttendance && existingAttendance.id) {
+        // تحديث سجل حضور موجود في الكاش
+        console.log(`Updating existing attendance record with id ${existingAttendance.id}`);
+
+        const { data, error } = await supabase
+          .from('attendance')
+          .update(attendanceRecord)
+          .eq('id', existingAttendance.id)
+          .select();
+
+        if (error) {
+          console.error(`Error updating attendance record:`, error);
+          throw error;
+        }
+
+        // تحديث الكاش
+        if (data && data.length > 0) {
+          attendance.value[key] = {
+            ...data[0],
+            student: data[0].student_id
+          }
+        }
+
+        return data[0];
       } else if (attendanceData.id) {
         // تحديث سجل حضور موجود باستخدام المعرف المقدم
-        const response = await api.put(`attendances/${attendanceData.id}/`, attendanceData)
+        console.log(`Updating attendance record with id ${attendanceData.id}`);
 
-        // تحديث الكاش
-        if (response.data) {
-          attendance.value[key] = response.data
+        const { data, error } = await supabase
+          .from('attendance')
+          .update(attendanceRecord)
+          .eq('id', attendanceData.id)
+          .select();
+
+        if (error) {
+          console.error(`Error updating attendance record:`, error);
+          throw error;
         }
 
-        return response.data
+        // تحديث الكاش
+        if (data && data.length > 0) {
+          attendance.value[key] = {
+            ...data[0],
+            student: data[0].student_id
+          }
+        }
+
+        return data[0];
       } else {
-        // إنشاء سجل حضور جديد
-        const response = await api.post('attendances/', attendanceData)
+        // إنشاء سجل حضور جديد باستخدام Supabase
+        console.log(`Creating new attendance record for student ${attendanceData.student}`);
 
-        // تحديث الكاش
-        if (response.data) {
-          attendance.value[key] = response.data
+        const { data, error } = await supabase
+          .from('attendance')
+          .insert([attendanceRecord])
+          .select();
+
+        if (error) {
+          console.error(`Error creating attendance record:`, error);
+          throw error;
         }
 
-        return response.data
+        // تحديث الكاش
+        if (data && data.length > 0) {
+          attendance.value[key] = {
+            ...data[0],
+            student: data[0].student_id
+          }
+        }
+
+        return data[0];
       }
     } catch (error) {
       console.error('Error saving attendance:', error)
@@ -581,34 +694,37 @@ export const useGradesStore = defineStore('grades', () => {
       console.log('Saving assignment:', assignmentData)
 
       // التحقق من وجود جميع الحقول المطلوبة
-      if (!assignmentData.title || !assignmentData.description || !assignmentData.subject) {
+      if (!assignmentData.title || !assignmentData.description) {
         throw new Error('Missing required fields for assignment')
       }
 
-      // إضافة حقل schedule إذا لم يكن موجوداً
-      if (!assignmentData.schedule) {
-        assignmentData.schedule = 1
-      }
+      // تعيين حقل schedule_id إلى null دائماً
+      assignmentData.schedule_id = null
 
       // التأكد من أن تاريخ الاستحقاق بالتنسيق الصحيح
       if (assignmentData.due_date instanceof Date) {
         assignmentData.due_date = assignmentData.due_date.toISOString().split('T')[0]
       }
 
+      // التأكد من وجود حقل subject_id
+      if (!assignmentData.subject_id && assignmentData.subject) {
+        assignmentData.subject_id = assignmentData.subject
+      }
+
       // التحقق من وجود معرف للواجب
+      let savedAssignment;
+
       if (assignmentData.id && assignmentData.id.toString().indexOf('temp-') === -1) {
         // تحديث واجب موجود
-        const response = await api.put(`assignments/${assignmentData.id}/`, assignmentData)
+        savedAssignment = await AssignmentService.updateAssignment(assignmentData.id, assignmentData);
 
         // تحديث الكاش
-        if (response.data && assignments.value[assignmentData.subject]) {
-          const index = assignments.value[assignmentData.subject].findIndex(a => a.id === assignmentData.id)
+        if (savedAssignment && assignments.value[assignmentData.subject_id]) {
+          const index = assignments.value[assignmentData.subject_id].findIndex(a => a.id === assignmentData.id)
           if (index !== -1) {
-            assignments.value[assignmentData.subject][index] = response.data
+            assignments.value[assignmentData.subject_id][index] = savedAssignment
           }
         }
-
-        return response.data
       } else {
         // إنشاء واجب جديد
         // إزالة المعرف المؤقت إذا كان موجوداً
@@ -616,18 +732,19 @@ export const useGradesStore = defineStore('grades', () => {
           delete assignmentData.id
         }
 
-        const response = await api.post('assignments/', assignmentData)
+        savedAssignment = await AssignmentService.createAssignment(assignmentData);
 
         // تحديث الكاش
-        if (response.data) {
-          if (!assignments.value[assignmentData.subject]) {
-            assignments.value[assignmentData.subject] = []
+        if (savedAssignment) {
+          const subjectId = savedAssignment.subject_id;
+          if (!assignments.value[subjectId]) {
+            assignments.value[subjectId] = []
           }
-          assignments.value[assignmentData.subject].push(response.data)
+          assignments.value[subjectId].push(savedAssignment)
         }
-
-        return response.data
       }
+
+      return savedAssignment;
     } catch (error) {
       console.error('Error saving assignment:', error)
       throw error
@@ -651,17 +768,17 @@ export const useGradesStore = defineStore('grades', () => {
       }
 
       try {
-        // حذف الواجب من الخادم
-        await api.delete(`assignments/${assignmentId}/`)
+        // حذف الواجب من الخادم باستخدام خدمة الواجبات
+        await AssignmentService.deleteAssignment(assignmentId)
       } catch (deleteError) {
         console.error('Error deleting assignment from server:', deleteError)
-        console.error('Error details:', deleteError.response?.data || deleteError.message)
 
         // إذا كان الخطأ 404 (غير موجود)، نحذف من الكاش فقط
         if (deleteError.response && deleteError.response.status === 404) {
           console.log('Assignment not found on server, removing from cache only')
         } else {
-          throw deleteError
+          // لا نرمي الخطأ لكن نسجله فقط
+          console.error('Error details:', deleteError.response?.data || deleteError.message)
         }
       }
 
@@ -673,38 +790,161 @@ export const useGradesStore = defineStore('grades', () => {
       return true
     } catch (error) {
       console.error('Error deleting assignment:', error)
-      throw error
+      // إرجاع false بدلاً من رمي الخطأ
+      return false
     }
   }
 
   const saveSubmission = async (submissionData) => {
     try {
-      console.log('Saving submission:', submissionData)
+      console.log('Saving submission status:', submissionData)
 
       // التحقق من وجود معرف للتسليم
-      if (submissionData.id) {
-        // تحديث تسليم موجود
-        const response = await api.put(`assignment-submissions/${submissionData.id}/`, submissionData)
+      let savedSubmission;
 
-        // تحديث الكاش
-        if (response.data) {
-          const key = `${response.data.student}-${response.data.assignment}`
-          submissions.value[key] = response.data
+      // البحث عن تسليم موجود لنفس الطالب والواجب
+      console.log(`Checking for existing submission for student ${submissionData.student} and assignment ${submissionData.assignment}`);
+      const { data: existingSubmissions, error: fetchError } = await supabase
+        .from('assignment_submissions')
+        .select('*')
+        .eq('assignment_id', submissionData.assignment)
+        .eq('student_id', submissionData.student)
+        .maybeSingle();
+
+      if (fetchError) {
+        console.error('Error fetching existing submission:', fetchError);
+      }
+
+      if (existingSubmissions) {
+        // تحديث تسليم موجود
+        console.log('Updating existing submission:', existingSubmissions.id);
+        const { data, error } = await supabase
+          .from('assignment_submissions')
+          .update({
+            notes: submissionData.notes,
+            status: submissionData.status,
+            subject_info: submissionData.subject_info || null,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', existingSubmissions.id)
+          .select('*');
+
+        if (error) {
+          console.error('Error updating submission:', error);
+          throw error;
         }
 
-        return response.data
+        savedSubmission = data[0];
       } else {
         // إنشاء تسليم جديد
-        const response = await api.post('assignment-submissions/', submissionData)
+        console.log('Creating new submission');
+        const { data, error } = await supabase
+          .from('assignment_submissions')
+          .insert({
+            assignment_id: submissionData.assignment,
+            student_id: submissionData.student,
+            submission_date: new Date().toISOString(),
+            notes: submissionData.notes,
+            status: submissionData.status,
+            subject_info: submissionData.subject_info || null
+          })
+          .select('*');
 
-        // تحديث الكاش
-        if (response.data) {
-          const key = `${response.data.student}-${response.data.assignment}`
-          submissions.value[key] = response.data
+        if (error) {
+          console.error('Error creating submission:', error);
+          throw error;
         }
 
-        return response.data
+        savedSubmission = data[0];
       }
+
+      // تحديث الكاش
+      if (savedSubmission) {
+        const key = `${savedSubmission.student_id}-${savedSubmission.assignment_id}`
+        submissions.value[key] = savedSubmission
+
+        // إعادة تعيين الكاش للتأكد من تحديث البيانات عند التحميل التالي
+        const cacheKey = `submissions-${savedSubmission.assignment_id}`
+        lastFetch.value[cacheKey] = null
+
+        // إعادة تعيين كاش الدرجات للتأكد من تحديث البيانات عند التحميل التالي
+        if (grades.value[savedSubmission.student_id]) {
+          // إعادة تعيين كاش الدرجات للطالب
+          const studentCacheKey = `grades-${savedSubmission.student_id}`
+          lastFetch.value[studentCacheKey] = null
+        }
+
+        // إذا كانت حالة التسليم مقدمة، نضيف درجة الواجب تلقائياً
+        if (savedSubmission.status === 'submitted') {
+          // الحصول على معلومات الواجب
+          const { data: assignment, error: assignmentError } = await supabase
+            .from('assignments')
+            .select('*')
+            .eq('id', savedSubmission.assignment_id)
+            .single();
+
+          if (assignmentError) {
+            console.error('Error fetching assignment:', assignmentError);
+          } else if (assignment) {
+            console.log('Assignment found:', assignment);
+            // البحث عن درجة واجب موجودة لنفس الطالب والمادة والتاريخ
+            let existingGrades = null;
+            try {
+              const { data, error } = await supabase
+                .from('grades')
+                .select('*')
+                .eq('student_id', savedSubmission.student_id)
+                .eq('subject_id', assignment.subject_id)
+                .eq('grade_type', 'homework')
+                .eq('date', new Date().toISOString().split('T')[0])
+                .limit(1);
+
+              if (error) {
+                console.error('Error checking for existing homework grade:', error);
+              } else if (data && data.length > 0) {
+                existingGrades = data[0];
+              }
+            } catch (error) {
+              console.error('Exception checking for existing homework grade:', error);
+            }
+
+            // إذا لم تكن هناك درجة موجودة، نضيف درجة جديدة
+            if (!existingGrades) {
+              // إضافة درجة الواجب
+              const homeworkGrade = {
+                student: savedSubmission.student_id,
+                subject: assignment.subject_id,
+                date: new Date().toISOString().split('T')[0],
+                type: 'homework',
+                score: assignment.score || 10,
+                max_score: 10,
+                notes: `تسليم واجب: ${assignment.title}`
+              };
+
+              try {
+                // تحديث الطالب في الكاش ليعكس الدرجة الجديدة
+                // نشر حدث لتحديث الواجهة
+                console.log('Emitting homework-grade-updated event for student:', savedSubmission.student_id, 'with score:', homeworkGrade.score);
+                // لا نستطيع تحديث students مباشرة لأنها في متجر مختلف
+
+                // حفظ الدرجة
+                await saveGrade(homeworkGrade);
+                console.log('Automatically added homework grade for submission');
+
+                // إعادة تعيين كاش الدرجات للطالب
+                const studentCacheKey = `grades-${savedSubmission.student_id}`;
+                lastFetch.value[studentCacheKey] = null;
+              } catch (gradeError) {
+                console.error('Error adding automatic homework grade:', gradeError);
+              }
+            } else {
+              console.log('Homework grade already exists, skipping automatic grade addition');
+            }
+          }
+        }
+      }
+
+      return savedSubmission;
     } catch (error) {
       console.error('Error saving submission:', error)
       throw error
@@ -749,14 +989,15 @@ export const useGradesStore = defineStore('grades', () => {
         const gradeTypes = [
           { type: 'theory', score: gradeData.theory || 0, max_score: 15 },
           { type: 'practical', score: gradeData.practical || 0, max_score: 5 },
-          { type: 'participation', score: (gradeData.participation || 0) + (gradeData.homework || 0), max_score: 10 },
+          { type: 'homework', score: gradeData.homework || 0, max_score: 10 },
+          { type: 'participation', score: gradeData.participation || 0, max_score: 10 },
           { type: 'quran', score: gradeData.quran || 0, max_score: 20 },
           { type: 'final', score: gradeData.final || 0, max_score: 40 }
         ]
 
         for (const gradeType of gradeTypes) {
           // إذا كان النوع موجود في gradeData أو كانت الدرجة أكبر من صفر
-          if (gradeData[gradeType.type] !== undefined || gradeType.score > 0) {
+          if (gradeData[gradeType.type] !== undefined) {
             formattedGrades.push({
               student: gradeData.student,
               subject: gradeData.subject,
@@ -769,7 +1010,7 @@ export const useGradesStore = defineStore('grades', () => {
         }
       }
 
-      console.log('Using batch API endpoint')
+      console.log('Using Supabase batch insert')
       console.log('Formatted grades to save:', formattedGrades)
 
       if (formattedGrades.length === 0) {
@@ -777,48 +1018,128 @@ export const useGradesStore = defineStore('grades', () => {
         return []
       }
 
+      // تحويل البيانات إلى الشكل المناسب لـ Supabase
+      const supabaseGrades = formattedGrades.map(grade => ({
+        student_id: grade.student,
+        subject_id: grade.subject,
+        date: grade.date,
+        grade_type: grade.type,
+        score: grade.score,
+        max_score: grade.max_score || 100,
+        notes: grade.notes || null
+      }));
+
       try {
-        // استخدام نقطة النهاية المجمعة
-        console.log('Making API request to grades/batch-create/')
-        const response = await api.post('grades/batch-create/', {
-          grades: formattedGrades
-        })
+        // التحقق من وجود درجات موجودة لنفس الطلاب والمواد والتواريخ والأنواع
+        const gradesToUpdate = [];
+        const gradesToInsert = [];
 
-        console.log('Batch save response:', response.data)
+        for (const grade of supabaseGrades) {
+          try {
+            // البحث عن درجة موجودة
+            const { data, error } = await supabase
+              .from('grades')
+              .select('id')
+              .eq('student_id', grade.student_id)
+              .eq('subject_id', grade.subject_id)
+              .eq('grade_type', grade.grade_type)
+              .eq('date', grade.date)
+              .limit(1);
 
-        // تحديث الكاش
-        if (response.data && response.data.results) {
-          console.log(`Successfully saved ${response.data.results.length} grades`)
-
-          for (const grade of response.data.results) {
-            if (!grades.value[grade.student]) {
-              grades.value[grade.student] = []
-            }
-
-            // البحث عن درجة موجودة في الكاش وتحديثها
-            const existingIndex = grades.value[grade.student].findIndex(g =>
-              g.id === grade.id ||
-              (g.type === grade.type && g.subject === grade.subject && g.date === grade.date)
-            )
-
-            if (existingIndex !== -1) {
-              grades.value[grade.student][existingIndex] = grade
+            if (error) {
+              console.error('Error checking for existing grade:', error);
+              gradesToInsert.push(grade);
+            } else if (data && data.length > 0) {
+              // إذا وجدت درجة موجودة، نضيفها إلى قائمة التحديث
+              gradesToUpdate.push({ ...grade, id: data[0].id });
             } else {
-              grades.value[grade.student].push(grade)
+              // إذا لم توجد درجة موجودة، نضيفها إلى قائمة الإنشاء
+              gradesToInsert.push(grade);
             }
+          } catch (error) {
+            console.error('Exception checking for existing grade:', error);
+            gradesToInsert.push(grade);
           }
         }
 
-        // إذا كانت هناك أخطاء، نسجلها في وحدة التحكم
-        if (response.data && response.data.errors && response.data.errors.length > 0) {
-          console.warn(`${response.data.errors.length} grades could not be saved:`, response.data.errors)
+        console.log(`Found ${gradesToUpdate.length} grades to update and ${gradesToInsert.length} grades to insert`);
+
+        // تحديث الدرجات الموجودة
+        const updatedGrades = [];
+        for (const grade of gradesToUpdate) {
+          try {
+            const { data, error } = await supabase
+              .from('grades')
+              .update({
+                score: grade.score,
+                max_score: grade.max_score,
+                notes: grade.notes
+              })
+              .eq('id', grade.id)
+              .select();
+
+            if (error) {
+              console.error(`Error updating grade with id ${grade.id}:`, error);
+            } else if (data && data.length > 0) {
+              updatedGrades.push(data[0]);
+            }
+          } catch (error) {
+            console.error(`Exception updating grade with id ${grade.id}:`, error);
+          }
+        }
+
+        // إنشاء الدرجات الجديدة
+        let insertedGrades = [];
+        if (gradesToInsert.length > 0) {
+          console.log('Making Supabase batch insert request for new grades');
+          const { data, error } = await supabase
+            .from('grades')
+            .insert(gradesToInsert)
+            .select();
+
+          if (error) {
+            console.error('Error using Supabase batch insert:', error);
+          } else if (data && Array.isArray(data)) {
+            console.log(`Successfully inserted ${data.length} new grades`);
+            insertedGrades = data;
+          }
+        }
+
+        // جمع جميع الدرجات المحدثة والجديدة
+        const allSavedGrades = [...updatedGrades, ...insertedGrades];
+        console.log(`Total saved grades: ${allSavedGrades.length}`);
+
+        // تحديث الكاش
+        if (allSavedGrades.length > 0) {
+          // جمع معرفات الطلاب الفريدة
+          const uniqueStudentIds = [...new Set(allSavedGrades.map(grade => grade.student_id))]
+
+          // إعادة تعيين كاش الدرجات لكل طالب
+          uniqueStudentIds.forEach(studentId => {
+            const studentCacheKey = `grades-${studentId}`
+            lastFetch.value[studentCacheKey] = null
+          })
+
+          for (const grade of allSavedGrades) {
+            if (!grades.value[grade.student_id]) {
+              grades.value[grade.student_id] = []
+            }
+
+            // إضافة الدرجة الجديدة إلى الكاش
+            grades.value[grade.student_id].push({
+              ...grade,
+              id: grade.id,
+              student: grade.student_id,
+              subject: grade.subject_id,
+              type: grade.grade_type
+            })
+          }
         }
 
         // إرجاع النتائج
-        return response.data.results || []
+        return allSavedGrades
       } catch (apiError) {
-        console.error('Error using batch-create endpoint:', apiError)
-        console.error('Error details:', apiError.response?.data || apiError.message)
+        console.error('Error using Supabase batch insert:', apiError)
 
         // في حالة فشل الطلب المجمع، نستخدم الطريقة القديمة كخطة بديلة
         throw apiError
@@ -840,14 +1161,15 @@ export const useGradesStore = defineStore('grades', () => {
         const gradeTypes = [
           { type: 'theory', score: gradeData.theory || 0 },
           { type: 'practical', score: gradeData.practical || 0 },
-          { type: 'participation', score: (gradeData.participation || 0) + (gradeData.homework || 0) },
+          { type: 'homework', score: gradeData.homework || 0 },
+          { type: 'participation', score: gradeData.participation || 0 },
           { type: 'quran', score: gradeData.quran || 0 },
           { type: 'final', score: gradeData.final || 0 }
         ]
 
         for (const gradeType of gradeTypes) {
-          // إذا كان النوع موجود في gradeData أو كانت الدرجة أكبر من صفر
-          if (gradeData[gradeType.type] !== undefined || gradeType.score > 0) {
+          // إذا كان النوع موجود في gradeData
+          if (gradeData[gradeType.type] !== undefined) {
             try {
               console.log(`Saving individual ${gradeType.type} grade for student ${gradeData.student}`)
               const singleGradeData = {
@@ -863,7 +1185,6 @@ export const useGradesStore = defineStore('grades', () => {
               results.push(result)
             } catch (err) {
               console.error(`Error saving individual ${gradeType.type} grade:`, err)
-              console.error('Error details:', err.response?.data || err.message)
             }
           }
         }
@@ -887,51 +1208,191 @@ export const useGradesStore = defineStore('grades', () => {
       console.log('Saving batch attendance:', attendanceDataArray)
 
       // تحويل بيانات الحضور إلى التنسيق المطلوب للباك اند
-      const formattedAttendance = attendanceDataArray.map(record => {
-        // التأكد من وجود حقل schedule
-        return !record.schedule ? { ...record, schedule: 1 } : record
+      const formattedAttendance = attendanceDataArray.filter(record => {
+        // التحقق من وجود الحقول المطلوبة
+        return record.student && record.date && record.status;
       })
 
-      console.log('Using new batch API endpoint')
-      console.log('Formatted attendance:', formattedAttendance)
+      if (formattedAttendance.length === 0) {
+        console.warn('No valid attendance records to save after formatting')
+        return []
+      }
 
-      // استخدام نقطة النهاية المجمعة الجديدة
-      const response = await api.post('attendances/batch-create/', {
-        attendance: formattedAttendance
+      // جمع كل معرفات الطلاب والتواريخ للبحث عن سجلات موجودة
+      const studentIds = [...new Set(formattedAttendance.map(item => item.student))]
+      const dates = [...new Set(formattedAttendance.map(item => item.date))]
+
+      console.log('Checking for existing attendance records for students:', studentIds)
+      console.log('On dates:', dates)
+
+      // البحث عن سجلات الحضور الموجودة لهؤلاء الطلاب في هذه التواريخ
+      const { data: existingRecords, error: searchError } = await supabase
+        .from('attendance')
+        .select('id, student_id, date')
+        .in('student_id', studentIds)
+        .in('date', dates)
+
+      if (searchError) {
+        console.error('Error searching for existing attendance records:', searchError)
+        throw searchError
+      }
+
+      console.log('Found existing attendance records:', existingRecords)
+
+      // إنشاء قاموس للبحث السريع عن السجلات الموجودة
+      const existingRecordsMap = {}
+      if (existingRecords && existingRecords.length > 0) {
+        existingRecords.forEach(record => {
+          const key = `${record.student_id}-${record.date}`
+          existingRecordsMap[key] = record.id
+        })
+      }
+
+      // فصل السجلات إلى سجلات للتحديث وسجلات للإنشاء
+      const recordsToUpdate = []
+      const recordsToCreate = []
+
+      formattedAttendance.forEach(item => {
+        const key = `${item.student}-${item.date}`
+        const existingId = existingRecordsMap[key]
+
+        const record = {
+          student_id: item.student,
+          date: item.date,
+          status: item.status,
+          notes: item.notes || null
+        }
+
+        if (existingId) {
+          // إضافة معرف للسجل الموجود للتحديث
+          recordsToUpdate.push({
+            id: existingId,
+            ...record
+          })
+        } else {
+          // إضافة سجل جديد للإنشاء
+          recordsToCreate.push(record)
+        }
       })
 
-      console.log('Batch save response:', response.data)
+      console.log(`Records to update: ${recordsToUpdate.length}, Records to create: ${recordsToCreate.length}`)
 
-      // تحديث الكاش
-      if (response.data && response.data.results) {
-        for (const record of response.data.results) {
-          const key = `${record.student}-${record.date}`
-          attendance.value[key] = record
+      const results = []
+
+      // تحديث السجلات الموجودة
+      if (recordsToUpdate.length > 0) {
+        console.log(`Updating ${recordsToUpdate.length} existing attendance records`)
+
+        // تحديث كل سجل على حدة لأن Supabase لا يدعم التحديث الجماعي
+        for (const record of recordsToUpdate) {
+          try {
+            const { data, error } = await supabase
+              .from('attendance')
+              .update({
+                status: record.status,
+                notes: record.notes
+              })
+              .eq('id', record.id)
+              .select()
+
+            if (error) {
+              console.error(`Error updating attendance record ${record.id}:`, error)
+              continue
+            }
+
+            if (data && data.length > 0) {
+              results.push(data[0])
+
+              // تحديث الكاش
+              const key = `${data[0].student_id}-${data[0].date}`
+              attendance.value[key] = {
+                ...data[0],
+                student: data[0].student_id
+              }
+            }
+          } catch (updateError) {
+            console.error(`Error updating attendance record ${record.id}:`, updateError)
+          }
         }
       }
 
-      // إذا كانت هناك أخطاء، نسجلها في وحدة التحكم
-      if (response.data && response.data.errors && response.data.errors.length > 0) {
-        console.warn('Some attendance records could not be saved:', response.data.errors)
+      // إنشاء سجلات جديدة
+      if (recordsToCreate.length > 0) {
+        console.log(`Creating ${recordsToCreate.length} new attendance records`)
+
+        try {
+          const { data, error } = await supabase
+            .from('attendance')
+            .insert(recordsToCreate)
+            .select()
+
+          if (error) {
+            console.error('Error creating new attendance records:', error)
+          } else if (data && data.length > 0) {
+            results.push(...data)
+
+            // تحديث الكاش
+            for (const record of data) {
+              const key = `${record.student_id}-${record.date}`
+              attendance.value[key] = {
+                ...record,
+                student: record.student_id
+              }
+            }
+          }
+        } catch (createError) {
+          console.error('Error creating new attendance records:', createError)
+
+          // إذا فشل الإنشاء الجماعي، نحاول إنشاء كل سجل على حدة
+          console.log('Falling back to individual creates for attendance')
+
+          for (const record of recordsToCreate) {
+            try {
+              const { data, error } = await supabase
+                .from('attendance')
+                .insert([record])
+                .select()
+
+              if (error) {
+                console.error(`Error creating individual attendance record for student ${record.student_id}:`, error)
+                continue
+              }
+
+              if (data && data.length > 0) {
+                results.push(data[0])
+
+                // تحديث الكاش
+                const key = `${data[0].student_id}-${data[0].date}`
+                attendance.value[key] = {
+                  ...data[0],
+                  student: data[0].student_id
+                }
+              }
+            } catch (individualError) {
+              console.error(`Error creating individual attendance record for student ${record.student_id}:`, individualError)
+            }
+          }
+        }
       }
 
-      // إرجاع النتائج
-      return response.data.results || []
+      console.log(`Successfully processed ${results.length} attendance records`)
+      return results
     } catch (error) {
-      console.error('Error saving batch attendance:', error)
+      console.error('Error saving batch attendance, falling back to individual saves:', error)
 
       // في حالة فشل الطلب المجمع، نستخدم الطريقة القديمة كخطة بديلة
-      console.log('Falling back to individual attendance saves')
+      console.log('Using individual attendance saves as fallback')
 
       const results = []
       for (const attendanceData of attendanceDataArray) {
         try {
-          // التأكد من وجود حقل schedule
-          const formattedData = !attendanceData.schedule ?
-            { ...attendanceData, schedule: 1 } :
-            attendanceData
+          // التحقق من وجود الحقول المطلوبة
+          if (!attendanceData.student || !attendanceData.date || !attendanceData.status) {
+            console.warn('Skipping attendance record with missing required fields:', attendanceData)
+            continue
+          }
 
-          const result = await saveAttendance(formattedData)
+          const result = await saveAttendance(attendanceData)
           results.push(result)
         } catch (err) {
           console.error('Error saving individual attendance:', err)
@@ -939,6 +1400,194 @@ export const useGradesStore = defineStore('grades', () => {
       }
 
       return results
+    }
+  }
+
+  /**
+   * دالة رفع ملف إلى الخادم
+   * @param {File} file الملف المراد رفعه
+   * @returns {Promise<string>} وعد برابط الملف المرفوع
+   */
+  const uploadFile = async (file) => {
+    try {
+      console.log('Uploading file:', file.name)
+
+      // إنشاء اسم فريد للملف
+      const timestamp = new Date().getTime()
+      const randomString = Math.random().toString(36).substring(2, 15)
+      const fileName = `${timestamp}_${randomString}_${file.name}`
+
+      // رفع الملف إلى Supabase Storage
+      const { data, error } = await AssignmentSubmissionService.uploadSubmissionFile(file, fileName)
+
+      if (error) {
+        console.error('Error uploading file:', error)
+        throw error
+      }
+
+      console.log('File uploaded successfully:', data)
+      return data.path
+    } catch (error) {
+      console.error('Error in uploadFile:', error)
+      throw error
+    }
+  }
+
+  // دالة جلب سجل حضور الطالب
+  const fetchAttendanceHistoryByStudent = async (studentId) => {
+    try {
+      console.log('Fetching attendance history for student:', studentId)
+
+      // استخدام Supabase لجلب سجل الحضور
+      const { data, error } = await supabase
+        .from('attendance')
+        .select('*')
+        .eq('student_id', studentId)
+        .order('date', { ascending: false })
+
+      if (error) {
+        console.error('Error fetching attendance history:', error)
+        throw error
+      }
+
+      // تحويل البيانات إلى الشكل المناسب
+      const formattedData = data.map(record => ({
+        id: record.id,
+        student: record.student_id,
+        date: record.date,
+        status: record.status,
+        notes: record.notes
+      }))
+
+      // تجميع السجلات حسب التاريخ للحصول على سجل واحد فقط لكل يوم
+      const uniqueDatesMap = new Map()
+
+      // استخدام Map للاحتفاظ بأحدث سجل لكل تاريخ
+      formattedData.forEach(record => {
+        // إذا لم يكن هناك سجل لهذا التاريخ أو كان هذا السجل أحدث
+        if (!uniqueDatesMap.has(record.date)) {
+          uniqueDatesMap.set(record.date, record)
+        }
+      })
+
+      // تحويل Map إلى مصفوفة وترتيبها حسب التاريخ
+      const uniqueRecords = Array.from(uniqueDatesMap.values())
+      uniqueRecords.sort((a, b) => new Date(b.date) - new Date(a.date))
+
+      return uniqueRecords
+    } catch (error) {
+      console.error('Error in fetchAttendanceHistoryByStudent:', error)
+      return []
+    }
+  }
+
+  // دالة جلب ملاحظات الطالب
+  const fetchNotesByStudent = async (studentId) => {
+    try {
+      console.log('Fetching notes for student:', studentId)
+
+      // استخدام Supabase لجلب الملاحظات
+      const { data, error } = await supabase
+        .from('notes')
+        .select('*')
+        .eq('student_id', studentId)
+        .order('created_at', { ascending: false })
+
+      if (error) {
+        console.error('Error fetching student notes:', error)
+        throw error
+      }
+
+      // تحويل البيانات إلى الشكل المناسب
+      const formattedData = data.map(record => ({
+        id: record.id,
+        student: record.student_id,
+        type: record.type || 'positive',
+        content: record.content,
+        date: record.created_at ? new Date(record.created_at).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]
+      }))
+
+      return formattedData
+    } catch (error) {
+      console.error('Error in fetchNotesByStudent:', error)
+      return []
+    }
+  }
+
+  // دالة حفظ ملاحظة للطالب
+  const saveNote = async (noteData) => {
+    try {
+      console.log('Saving note:', noteData)
+
+      // التحقق من وجود جميع الحقول المطلوبة
+      if (!noteData.student || !noteData.type || !noteData.content) {
+        throw new Error('Missing required fields for note')
+      }
+
+      // إعداد بيانات الملاحظة للحفظ في Supabase
+      const noteRecord = {
+        student_id: noteData.student,
+        type: noteData.type,
+        content: noteData.content,
+        title: noteData.title || `ملاحظة ${noteData.type === 'positive' ? 'إيجابية' : 'سلبية'}`
+        // لا نحتاج إلى تحديد created_at لأنه يتم إنشاؤه تلقائياً في Supabase
+      }
+
+      // التحقق من وجود معرف للملاحظة
+      if (noteData.id) {
+        // تحديث ملاحظة موجودة
+        const { data, error } = await supabase
+          .from('notes')
+          .update(noteRecord)
+          .eq('id', noteData.id)
+          .select()
+
+        if (error) {
+          console.error('Error updating note:', error)
+          throw error
+        }
+
+        return data?.[0] || null
+      } else {
+        // إنشاء ملاحظة جديدة
+        const { data, error } = await supabase
+          .from('notes')
+          .insert(noteRecord)
+          .select()
+
+        if (error) {
+          console.error('Error creating note:', error)
+          throw error
+        }
+
+        return data?.[0] || null
+      }
+    } catch (error) {
+      console.error('Error saving note:', error)
+      throw error
+    }
+  }
+
+  // دالة حذف ملاحظة
+  const deleteNote = async (noteId) => {
+    try {
+      console.log('Deleting note:', noteId)
+
+      // حذف الملاحظة من Supabase
+      const { error } = await supabase
+        .from('notes')
+        .delete()
+        .eq('id', noteId)
+
+      if (error) {
+        console.error('Error deleting note:', error)
+        throw error
+      }
+
+      return true
+    } catch (error) {
+      console.error('Error in deleteNote:', error)
+      throw error
     }
   }
 
@@ -963,6 +1612,8 @@ export const useGradesStore = defineStore('grades', () => {
     fetchAttendanceForDate,
     fetchAssignmentsBySubject,
     fetchSubmissionsForAssignment,
+    fetchAttendanceHistoryByStudent,
+    fetchNotesByStudent,
     clearCache,
 
     // Acciones de escritura
@@ -972,6 +1623,9 @@ export const useGradesStore = defineStore('grades', () => {
     deleteAssignment,
     saveSubmission,
     saveBatchGrades,
-    saveBatchAttendance
+    saveBatchAttendance,
+    saveNote,
+    deleteNote,
+    uploadFile
   }
 })

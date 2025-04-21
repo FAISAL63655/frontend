@@ -15,17 +15,6 @@
           <v-form ref="form" v-model="valid">
             <v-row>
               <v-col cols="12">
-                <v-select
-                  v-model="sectionData.class_id"
-                  :items="classes"
-                  item-title="name"
-                  item-value="id"
-                  label="الصف"
-                  required
-                  :rules="[v => !!v || 'الصف مطلوب']"
-                ></v-select>
-              </v-col>
-              <v-col cols="12">
                 <v-text-field
                   v-model="sectionData.name"
                   label="اسم الفصل"
@@ -53,14 +42,13 @@
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue';
-import axios from 'axios';
+import { SectionService } from '../../services';
 
 // نموذج الفصل الدراسي
 class Section {
   constructor(data = {}) {
     this.id = data.id || null;
     this.name = data.name || '';
-    this.class_id = data.class_id || null;
   }
 }
 
@@ -72,28 +60,9 @@ const form = ref(null);
 // بيانات الفصل
 const sectionData = reactive(new Section({}));
 
-// قائمة الصفوف
-const classes = ref([]);
-
-// جلب قائمة الصفوف
-const fetchClasses = async () => {
-  try {
-    const response = await axios.get('classes/');
-    classes.value = response.data;
-  } catch (error) {
-    console.error('خطأ في جلب قائمة الصفوف:', error);
-    // في حالة الخطأ، استخدم بيانات افتراضية
-    classes.value = [
-      { id: 1, name: 'الصف الأول' },
-      { id: 2, name: 'الصف الثاني' },
-      { id: 3, name: 'الصف الثالث' }
-    ];
-  }
-};
-
 // تنفيذ عند تحميل المكون
 onMounted(() => {
-  fetchClasses();
+  // لا شيء للقيام به عند التحميل
 });
 
 // إغلاق الحوار
@@ -107,7 +76,6 @@ const resetForm = () => {
   // إعادة تعيين القيم بشكل مباشر
   sectionData.id = null;
   sectionData.name = '';
-  sectionData.class_id = null;
 
   if (form.value) {
     form.value.resetValidation();
@@ -125,18 +93,12 @@ const save = async () => {
       return;
     }
 
-    if (!sectionData.class_id) {
-      alert('يرجى اختيار الصف');
-      return;
-    }
-
     console.log('تم حفظ الفصل:', sectionData);
 
     // إنشاء نسخة من البيانات للتأكد من عدم فقدان القيم
     const sectionToSend = {
       id: sectionData.id,
-      name: sectionData.name,
-      class_id: sectionData.class_id
+      name: sectionData.name
     };
     console.log('إرسال الفصل:', sectionToSend);
 

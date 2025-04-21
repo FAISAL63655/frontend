@@ -52,8 +52,8 @@
           <div class="d-flex justify-space-around h-100 attendance-bars-container">
             <div v-for="day in weeklyAttendance" :key="day.day_number" class="attendance-day">
               <div class="attendance-bar-container">
-                <div 
-                  class="attendance-bar" 
+                <div
+                  class="attendance-bar"
                   :style="{ height: `${day.rate}%` }"
                   :class="{ 'no-data': day.total === 0 }"
                 >
@@ -74,7 +74,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import api from '../../services/api'
+import DashboardService from '../../services/DashboardService'
 
 const weeklyAttendance = ref([])
 const isLoading = ref(false)
@@ -88,11 +88,18 @@ onMounted(() => {
 const fetchWeeklyAttendance = async () => {
   isLoading.value = true
   hasError.value = false
-  
+
   try {
-    const response = await api.get('/dashboard/weekly-attendance/')
-    if (response.data && response.data.length > 0) {
-      weeklyAttendance.value = response.data
+    const data = await DashboardService.getWeeklyAttendance()
+    if (data && data.length > 0) {
+      weeklyAttendance.value = data.map(day => ({
+        day: day.day,
+        day_number: ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'].indexOf(day.day),
+        present: day.present,
+        absent: day.absent,
+        rate: day.present_rate,
+        total: day.total
+      }))
       console.log('Weekly attendance loaded successfully:', weeklyAttendance.value)
     } else {
       console.log('No weekly attendance data returned, using fallback data')
@@ -109,7 +116,7 @@ const fetchWeeklyAttendance = async () => {
     console.error('Error fetching weekly attendance:', error)
     hasError.value = true
     errorMessage.value = 'حدث خطأ أثناء تحميل بيانات الحضور. يرجى المحاولة مرة أخرى.'
-    
+
     // Fallback data
     weeklyAttendance.value = [
       { day: "الأحد", day_number: 0, present: 45, absent: 5, rate: 90, total: 50 },

@@ -151,8 +151,8 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import api from '@/services/apiConfig'
 import ChampionsCard from '@/components/champions/ChampionsCard.vue'
+import ChampionsService from '@/services/ChampionsService'
 
 // Top Attendance Students
 const topAttendanceStudents = ref([])
@@ -210,11 +210,11 @@ const fetchAllData = async () => {
 const fetchTopAttendanceStudents = async () => {
   isLoadingAttendance.value = true
   hasErrorAttendance.value = false
-  
+
   try {
-    const response = await api.get('/champions/top-attendance/')
-    if (response.data && response.data.length > 0) {
-      topAttendanceStudents.value = response.data
+    const data = await ChampionsService.getTopAttendanceStudents()
+    if (data && data.length > 0) {
+      topAttendanceStudents.value = data
       console.log('Top attendance students loaded successfully:', topAttendanceStudents.value)
     } else {
       console.log('No top attendance students data returned, using fallback data')
@@ -240,11 +240,11 @@ const fetchTopAttendanceStudents = async () => {
 const fetchTopAssignmentStudents = async () => {
   isLoadingAssignments.value = true
   hasErrorAssignments.value = false
-  
+
   try {
-    const response = await api.get('/champions/top-assignments/')
-    if (response.data && response.data.length > 0) {
-      topAssignmentStudents.value = response.data
+    const data = await ChampionsService.getTopAssignmentStudents()
+    if (data && data.length > 0) {
+      topAssignmentStudents.value = data
       console.log('Top assignment students loaded successfully:', topAssignmentStudents.value)
     } else {
       console.log('No top assignment students data returned, using fallback data')
@@ -270,11 +270,11 @@ const fetchTopAssignmentStudents = async () => {
 const fetchTopPositiveNotesStudents = async () => {
   isLoadingPositiveNotes.value = true
   hasErrorPositiveNotes.value = false
-  
+
   try {
-    const response = await api.get('/champions/top-positive-notes/')
-    if (response.data && response.data.length > 0) {
-      topPositiveNotesStudents.value = response.data
+    const data = await ChampionsService.getTopPositiveNotesStudents()
+    if (data && data.length > 0) {
+      topPositiveNotesStudents.value = data
       console.log('Top positive notes students loaded successfully:', topPositiveNotesStudents.value)
     } else {
       console.log('No top positive notes students data returned, using fallback data')
@@ -300,11 +300,11 @@ const fetchTopPositiveNotesStudents = async () => {
 const fetchTopGradesStudents = async () => {
   isLoadingGrades.value = true
   hasErrorGrades.value = false
-  
+
   try {
-    const response = await api.get('/champions/top-grades/')
-    if (response.data && response.data.length > 0) {
-      topGradesStudents.value = response.data
+    const data = await ChampionsService.getTopGradesStudents()
+    if (data && data.length > 0) {
+      topGradesStudents.value = data
       console.log('Top grades students loaded successfully:', topGradesStudents.value)
     } else {
       console.log('No top grades students data returned, using fallback data')
@@ -330,11 +330,11 @@ const fetchTopGradesStudents = async () => {
 const fetchTopQuranStudents = async () => {
   isLoadingQuran.value = true
   hasErrorQuran.value = false
-  
+
   try {
-    const response = await api.get('/champions/top-quran/')
-    if (response.data && response.data.length > 0) {
-      topQuranStudents.value = response.data
+    const data = await ChampionsService.getTopQuranStudents()
+    if (data && data.length > 0) {
+      topQuranStudents.value = data
       console.log('Top Quran students loaded successfully:', topQuranStudents.value)
     } else {
       console.log('No top Quran students data returned, using fallback data')
@@ -360,11 +360,11 @@ const fetchTopQuranStudents = async () => {
 const fetchMostImprovedStudents = async () => {
   isLoadingImproved.value = true
   hasErrorImproved.value = false
-  
+
   try {
-    const response = await api.get('/champions/most-improved/')
-    if (response.data && response.data.length > 0) {
-      mostImprovedStudents.value = response.data
+    const data = await ChampionsService.getMostImprovedStudents()
+    if (data && data.length > 0) {
+      mostImprovedStudents.value = data
       console.log('Most improved students loaded successfully:', mostImprovedStudents.value)
     } else {
       console.log('No most improved students data returned, using fallback data')

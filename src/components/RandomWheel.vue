@@ -1,7 +1,7 @@
 <template>
   <div class="wheel-container" ref="wheelContainer">
     <canvas ref="wheelCanvas" class="wheel-canvas"></canvas>
-    <div class="wheel-center" v-if="!isSpinning && !showResult">
+    <div class="wheel-center" v-if="!isSpinning && !selectedItem">
       <v-btn
         color="primary"
         size="large"
@@ -32,40 +32,7 @@
     <div class="wheel-pointer">
       <v-icon icon="mdi-triangle" color="error" size="x-large"></v-icon>
     </div>
-    <!-- عرض الطالب المختار تحت العجلة -->
-    <div v-if="selectedItem && !isSpinning" class="selected-student-container mt-4 pa-4">
-      <v-card class="result-card elevation-5" color="surface">
-        <v-card-title class="text-center d-block pa-3 bg-primary text-white">
-          <v-icon size="large" class="mb-1">mdi-trophy</v-icon>
-          <h2 class="text-h5 font-weight-bold">تم الاختيار!</h2>
-        </v-card-title>
-
-        <v-card-text class="text-center pa-4">
-          <div class="student-image-container mb-3">
-            <v-avatar size="120" class="student-avatar" :color="getAvatarColor(selectedItem.name)">
-              <v-img v-if="selectedItem.image" :src="selectedItem.image" :alt="selectedItem.name" cover></v-img>
-              <span v-else class="text-h4 text-white">{{ getInitials(selectedItem.name) }}</span>
-            </v-avatar>
-          </div>
-          <h2 class="text-h4 font-weight-bold primary--text">{{ selectedItem.name }}</h2>
-          <p v-if="selectedItem.class_name" class="text-subtitle-1 mt-1">
-            {{ selectedItem.class_name }} - {{ selectedItem.section }}
-          </p>
-        </v-card-text>
-
-        <v-card-actions class="justify-center pa-3">
-          <v-btn
-            color="primary"
-            size="large"
-            @click="resetWheel"
-            class="px-6"
-          >
-            <v-icon start>mdi-refresh</v-icon>
-            إعادة العجلة
-          </v-btn>
-        </v-card-actions>
-      </v-card>
-    </div>
+    <!-- تم إزالة عرض الطالب المختار من هنا لأنه سيظهر في الصفحة الرئيسية -->
   </div>
 </template>
 
@@ -224,8 +191,12 @@ const drawWheel = () => {
 
 // Spin the wheel
 const spinWheel = () => {
-  if (isSpinning.value || totalItems.value === 0) return;
+  if (isSpinning.value || totalItems.value === 0) {
+    console.log('Cannot spin wheel: isSpinning =', isSpinning.value, 'totalItems =', totalItems.value);
+    return;
+  }
 
+  console.log('Starting wheel spin with', totalItems.value, 'items');
   isSpinning.value = true;
   selectedItem.value = null;
 
@@ -235,6 +206,8 @@ const spinWheel = () => {
   const randomIndex = Math.floor(Math.random() * totalItems.value);
   const randomAngle = randomIndex * sliceAngle.value;
 
+  console.log('Selected random index:', randomIndex, 'out of', totalItems.value, 'items');
+
   // Target angle calculation:
   // 1. Start from current angle
   // 2. Add minimum rotations (4 * 2π)
@@ -242,9 +215,9 @@ const spinWheel = () => {
   // 4. Add a small offset to ensure the pointer lands in the middle of a slice
   targetAngle.value = rotationAngle.value + (minRotations * 2 * Math.PI) + randomAngle + (sliceAngle.value / 2);
 
-  // Set animation timing - increase time for much slower spin (20 seconds instead of 5)
+  // Set animation timing - make it faster (3 seconds instead of 5)
   startTime.value = performance.now();
-  endTime.value = startTime.value + (props.spinTime * 4); // Quadruple the duration
+  endTime.value = startTime.value + (props.spinTime * 0.6); // 60% of the original duration
 
   // Start animation
   animateWheel();
@@ -259,17 +232,17 @@ const animateWheel = () => {
   // Calculate progress (0 to 1)
   let progress = Math.min(elapsed / duration, 1);
 
-  // Custom easing function for much slower and smoother movement
-  // First 60% of time - very slow acceleration
-  // Last 40% of time - very gradual deceleration
-  if (progress < 0.6) {
-    // Slow start - quintic ease-in: progress = progress^5
-    progress = progress * 0.6 / 0.6; // Normalize to 0-1 range
-    progress = Math.pow(progress, 5) * 0.6; // Scale back to 0-0.6 range
+  // Custom easing function for faster and smoother movement
+  // First 40% of time - quick acceleration
+  // Last 60% of time - gradual deceleration
+  if (progress < 0.4) {
+    // Quick start - cubic ease-in: progress = progress^3
+    progress = progress * 0.4 / 0.4; // Normalize to 0-1 range
+    progress = Math.pow(progress, 3) * 0.4; // Scale back to 0-0.4 range
   } else {
-    // Slow end - custom ease-out with very gradual deceleration
-    progress = (progress - 0.6) * 0.4 / 0.4; // Normalize to 0-1 range
-    progress = 0.6 + 0.4 * (1 - Math.pow(1 - progress, 4)); // Scale back to 0.6-1 range
+    // Gradual end - custom ease-out
+    progress = (progress - 0.4) * 0.6 / 0.6; // Normalize to 0-1 range
+    progress = 0.4 + 0.6 * (1 - Math.pow(1 - progress, 3)); // Scale back to 0.4-1 range
   }
 
   // Calculate current rotation
@@ -289,21 +262,46 @@ const animateWheel = () => {
 
 // Finish spinning and show result
 const finishSpin = () => {
+  // Check if we have items to select from
+  if (totalItems.value === 0 || !props.items || props.items.length === 0) {
+    console.error('No items to select from');
+    isSpinning.value = false;
+    return;
+  }
+
   // Calculate which item is selected
   const normalizedAngle = rotationAngle.value % (2 * Math.PI);
   const itemIndex = Math.floor(totalItems.value - (normalizedAngle / sliceAngle.value)) % totalItems.value;
 
   // Make sure we have a valid index
   const validIndex = (itemIndex >= 0 && itemIndex < props.items.length) ? itemIndex : 0;
+
+  // Set the selected item
   selectedItem.value = props.items[validIndex];
 
-  console.log('Selected student:', selectedItem.value.name);
+  console.log('Selected student:', selectedItem.value.name, 'at index', validIndex);
 
   // Finish spinning
   isSpinning.value = false;
 
-  // Emit selected item
+  // Emit selected item with a small delay to ensure reactivity
+  console.log('Emitting selected student to parent:', selectedItem.value);
+
+  // Emit the event immediately and log it
+  console.log('EMITTING SELECTED STUDENT NOW:', selectedItem.value);
   emit('selected', selectedItem.value);
+
+  // Also emit it again after a short delay to ensure it's caught
+  setTimeout(() => {
+    console.log('EMITTING SELECTED STUDENT AGAIN AFTER DELAY:', selectedItem.value);
+    emit('selected', selectedItem.value);
+  }, 100);
+
+  // And again after a longer delay
+  setTimeout(() => {
+    console.log('EMITTING SELECTED STUDENT FINAL TIME AFTER LONGER DELAY:', selectedItem.value);
+    emit('selected', selectedItem.value);
+  }, 500);
 
   // Trigger confetti
   if (wheelContainer.value) {
@@ -329,6 +327,10 @@ const resetWheel = () => {
   console.log('Resetting wheel');
   selectedItem.value = null;
   isSpinning.value = false;
+  console.log('Wheel reset complete, selectedItem:', selectedItem.value);
+
+  // Emit selected item as null to notify parent
+  emit('selected', null);
 
   // Redraw the wheel to ensure it's visible
   setTimeout(() => {

@@ -13,10 +13,7 @@ import * as directives from 'vuetify/directives'
 
 import App from './App.vue'
 import router from './router'
-import axios from 'axios'
-
-// Configure axios with environment variables
-axios.defaults.baseURL = import.meta.env.VITE_API_BASE_URL || '/api/'
+import supabase from './services/supabaseClient'
 
 // Get user preferred theme
 const prefersDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches
@@ -73,7 +70,7 @@ app.use(createPinia())
 app.use(router)
 app.use(vuetify)
 
-// Make axios available globally
-app.config.globalProperties.$axios = axios
+// Make supabase available globally
+app.config.globalProperties.$supabase = supabase
 
 app.mount('#app')

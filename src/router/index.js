@@ -21,18 +21,8 @@ const routes = [
       component: () => import('../views/ScheduleView.vue'),
       meta: { title: 'الجدول الدراسي' }
     },
-    {
-      path: '/grades',
-      name: 'grades',
-      component: () => import('../views/GradesView.vue'),
-      meta: { title: 'الدرجات' }
-    },
-    {
-      path: '/grades-new',
-      name: 'grades-new',
-      component: () => import('../views/GradesViewNew.vue'),
-      meta: { title: 'الدرجات المحدثة' }
-    },
+
+
     {
       path: '/reports',
       name: 'reports',
@@ -74,6 +64,12 @@ const routes = [
       name: 'champions',
       component: () => import('../views/ChampionsView.vue'),
       meta: { title: 'الفرسان' }
+    },
+    {
+      path: '/unified-grades',
+      name: 'unified-grades',
+      component: () => import('../views/UnifiedGradesView.vue'),
+      meta: { title: 'الدرجات الموحدة' }
     }
 ]
 
@@ -105,10 +101,10 @@ router.beforeEach((to, from, next) => {
   if (to.name === 'dashboard') {
     // تحميل مسبق للصفحات الأكثر استخدامًا عند الوصول إلى لوحة التحكم
     import('../views/StudentsView.vue')
-    import('../views/GradesView.vue')
+    import('../views/UnifiedGradesView.vue')
   } else if (to.name === 'students') {
     // تحميل مسبق لصفحات ذات صلة بالطلاب
-    import('../views/GradesView.vue')
+    import('../views/UnifiedGradesView.vue')
     import('../views/ClassesAndSubjectsView.vue')
   }
 

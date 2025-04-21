@@ -67,7 +67,7 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import api from '../../services/api'
+import DashboardService from '../../services/DashboardService'
 
 const topStudents = ref([])
 const isLoading = ref(false)
@@ -81,11 +81,11 @@ onMounted(() => {
 const fetchTopStudents = async () => {
   isLoading.value = true
   hasError.value = false
-  
+
   try {
-    const response = await api.get('/dashboard/top-students/')
-    if (response.data && response.data.length > 0) {
-      topStudents.value = response.data
+    const data = await DashboardService.getTopStudents()
+    if (data && data.length > 0) {
+      topStudents.value = data
       console.log('Top students loaded successfully:', topStudents.value)
     } else {
       console.log('No top students data returned, using fallback data')
@@ -102,7 +102,7 @@ const fetchTopStudents = async () => {
     console.error('Error fetching top students:', error)
     hasError.value = true
     errorMessage.value = 'حدث خطأ أثناء تحميل بيانات الطلاب. يرجى المحاولة مرة أخرى.'
-    
+
     // Fallback data
     topStudents.value = [
       { id: 1, name: 'أحمد محمد', class: 'الصف الثالث', section: 'أ', avg_score: 95.5, grades_count: 10, image_url: null },
